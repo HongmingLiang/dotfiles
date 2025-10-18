@@ -1,0 +1,15 @@
+[user] # Configure your name and email
+	name = HongmingLiang
+	email = hm.liang.dev@outlook.com
+[alias]
+	cm = commit
+	co = checkout
+	br = branch
+	st = status
+[init]
+	defaultBranch = main
+[core]
+	editor = vim
+	autocrlf = input
+[color]
+    ui = auto
