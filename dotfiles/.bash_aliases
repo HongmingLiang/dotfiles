@@ -28,3 +28,11 @@ alias ca='conda activate'
 # docker
 alias d='docker'
 alias dc='docker compose'
+
+# tree
+alias tree="tree -alC -L 2 -I '.git'"
+alias tree1="tree -alC -L 1 -I '.git'"
+alias tree2="tree -alC -L 2 -I '.git'"
+alias tree3="tree -alC -L 3 -I '.git'"
+alias tree4="tree -alC -L 4 -I '.git'"
+alias tree5="tree -alC -L 5 -I '.git'"
