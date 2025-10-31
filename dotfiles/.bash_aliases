@@ -22,8 +22,9 @@ alias ga='git add'
 alias gc='git commit'
 alias gl='git log'
 
-# conda
+# conda and mamba
 alias ca='conda activate'
+alias ma='mamba activate'
 
 # docker
 alias d='docker'
