@@ -12,6 +12,7 @@ export LANG=C.UTF-8
 export LANGUAGE=C.UTF-8
 
 # History settings
+HISTIGNORE="ls:ll:cd:pwd:exit:history"
 HISTCONTROL=ignoreboth
 HISTSIZE=1000
 HISTFILESIZE=2000

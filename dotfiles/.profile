@@ -15,3 +15,6 @@ fi
 if [ -d "$HOME/.local/bin" ] ; then
     PATH="$HOME/.local/bin:$PATH"
 fi
+
+echo -e "\033[1;34mWelcome, $USER! $(date)\033[0m"
+
