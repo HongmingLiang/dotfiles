@@ -1,6 +1,17 @@
 set nocompatible
 set laststatus=2 " Always show status line
 
+if has("autocmd")
+  au VimEnter,InsertLeave * silent execute '!echo -ne "\e[2 q"' | redraw!
+  au InsertEnter,InsertChange *
+    \ if v:insertmode == 'i' | 
+    \   silent execute '!echo -ne "\e[6 q"' | redraw! |
+    \ elseif v:insertmode == 'r' |
+    \   silent execute '!echo -ne "\e[4 q"' | redraw! |
+    \ endif
+  au VimLeave * silent execute '!echo -ne "\e[ q"' | redraw!
+endif
+
 set encoding=utf8 nobomb
 syntax on " Enable syntax highlighting
 set number " Show line numbers
@@ -31,3 +42,4 @@ nnoremap <leader>wq :wq<CR>
 nnoremap <leader>r :source ~/.vimrc<CR>
 nnoremap <leader>n :set number!<CR>
 nnoremap <leader><space> :nohlsearch<CR>
+
