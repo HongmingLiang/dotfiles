@@ -58,6 +58,7 @@ map <F1> :help<CR>
 nnoremap <leader>w :w<CR>
 nnoremap <leader>q :q<CR>
 nnoremap <leader>wq :wq<CR>
-nnoremap <leader>r :source ~/.vimrc<CR>
+nnoremap <leader>r :source $XDG_CONFIG_HOME/vim/vimrc<CR>
 nnoremap <leader>n :set number!<CR>
 nnoremap <leader><space> :nohlsearch<CR>
+inoremap jk <Esc>l
