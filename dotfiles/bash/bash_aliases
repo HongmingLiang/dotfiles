@@ -37,3 +37,6 @@ alias tree2="tree -alC -L 2 -I '.git'"
 alias tree3="tree -alC -L 3 -I '.git'"
 alias tree4="tree -alC -L 4 -I '.git'"
 alias tree5="tree -alC -L 5 -I '.git'"
+
+# yazi
+alias yy="yazi"
