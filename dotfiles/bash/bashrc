@@ -12,6 +12,7 @@ export LANG=C.UTF-8
 export LANGUAGE=C.UTF-8
 
 # History settings
+export HISTFILE="$XDG_DATA_HOME/bash/history"
 HISTIGNORE="ls:ll:cd:pwd:exit:history"
 HISTCONTROL=ignoreboth
 HISTSIZE=1000
@@ -103,7 +104,9 @@ if [ -x /usr/bin/dircolors ]; then
     alias egrep='egrep --color=auto'
 fi
 
-[ -f ~/.bash_aliases ] && source ~/.bash_aliases
+for f in "${XDG_CONFIG_HOME:-$HOME/.config}/bash/bash_aliases" "$HOME/.bash_aliases"; do
+    [ -f "$f" ] && source "$f" && break
+done
 
 # PS1 with Git branch info
 if command -v git >/dev/null 2>&1; then
