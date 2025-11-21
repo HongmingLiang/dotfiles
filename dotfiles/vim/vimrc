@@ -1,3 +1,19 @@
+if empty($XDG_CONFIG_HOME)
+   let $XDG_CONFIG_HOME = expand('~/.config')
+endif
+if empty($XDG_CACHE_HOME)
+   let $XDG_CACHE_HOME = expand('~/.cache')
+endif
+if empty($XDG_DATA_HOME)
+   let $XDG_DATA_HOME = expand('~/.local/share')
+endif
+set directory=$XDG_CACHE_HOME/vim/swap,~/,/tmp
+set backupdir=$XDG_CACHE_HOME/vim/backup,~/,/tmp
+set undodir=$XDG_CACHE_HOME/vim/undo,~/,/tmp
+set viminfo+=n$XDG_CACHE_HOME/vim/viminfo
+set runtimepath+=$XDG_CONFIG_HOME/vim,$XDG_CONFIG_HOME/vim/after,$VIM,$VIMRUNTIME
+let $MYVIMRC = "$XDG_CONFIG_HOME/vim/vimrc"
+
 set nocompatible
 set laststatus=2 " Always show status line
 
@@ -12,8 +28,11 @@ if has("autocmd")
   au VimLeave * silent execute '!echo -ne "\e[ q"' | redraw!
 endif
 
+if has("syntax")
+  syntax on
+endif " Enable syntax highlighting
+
 set encoding=utf8 nobomb
-syntax on " Enable syntax highlighting
 set number " Show line numbers
 set cursorline " Highlight current line
 set ruler " Show cursor position
@@ -34,7 +53,7 @@ set hlsearch " Highlight search results
 
 set mouse=a " Enable mouse support
 
-let mapleader=";"
+let mapleader=" "
 map <F1> :help<CR>
 nnoremap <leader>w :w<CR>
 nnoremap <leader>q :q<CR>
@@ -42,4 +61,3 @@ nnoremap <leader>wq :wq<CR>
 nnoremap <leader>r :source ~/.vimrc<CR>
 nnoremap <leader>n :set number!<CR>
 nnoremap <leader><space> :nohlsearch<CR>
-

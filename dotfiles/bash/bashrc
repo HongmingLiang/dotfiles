@@ -6,7 +6,7 @@ case $- in
 esac
 
 export EDITOR=vim
-
+[ $EDITOR = "vim" ] && export VIMINIT="source $XDG_CONFIG_HOME/vim/vimrc"
 export LC_ALL=C.UTF-8
 export LANG=C.UTF-8
 export LANGUAGE=C.UTF-8
