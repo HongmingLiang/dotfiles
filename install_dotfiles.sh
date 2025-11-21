@@ -8,12 +8,6 @@ DOTFILES_HOME="$DOTFILES_SRC/home"
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 BACKUP_DIR="$HOME/.dotfiles_backup/$(date +%Y%m%d_%H%M%S)"
 
-echo "=== Dotfiles Installer ==="
-[ ! -d "$DOTFILES_SRC" ] && echo "Error: dotfiles directory not found: $DOTFILES_SRC" && exit 1
-
-echo "Installing dotfiles..."
-echo "Backup: $BACKUP_DIR"
-
 # parse args
 DRY_RUN=0
 while [ $# -gt 0 ]; do
@@ -32,6 +26,9 @@ while [ $# -gt 0 ]; do
             ;;
     esac
 done
+
+echo "=== Dotfiles Installer ==="
+[ ! -d "$DOTFILES_SRC" ] && echo "Error: dotfiles directory not found: $DOTFILES_SRC" && exit 1
 
 echo "Installing dotfiles..."
 echo "Backup: $BACKUP_DIR"
