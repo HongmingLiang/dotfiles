@@ -21,6 +21,13 @@ shopt -s checkwinsize
 
 # ===================== add tools to PATH =====================
 
+# --- Homebrew  ---
+if command -v brew >/dev/null 2>&1; then # if brew is in PATH 
+    eval "$(brew shellenv)"
+elif [ -f /home/linuxbrew/.linuxbrew/bin/brew ]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+
 # --- conda/mamba  ---
 conda() { _lazy_conda_init conda "$@"; }
 mamba() { _lazy_conda_init mamba "$@"; }
