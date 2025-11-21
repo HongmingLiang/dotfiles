@@ -29,6 +29,13 @@ elif [ -f /home/linuxbrew/.linuxbrew/bin/brew ]; then
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
 
+# zoxide
+if command -v zoxide &> /dev/null; then
+    eval "$(zoxide init bash --cmd cd)"
+    alias z='__zoxide_z'
+    alias zi='__zoxide_zi'
+fi
+
 # --- conda/mamba  ---
 conda() { _lazy_conda_init conda "$@"; }
 mamba() { _lazy_conda_init mamba "$@"; }
@@ -50,7 +57,6 @@ _lazy_conda_init() {
             break
         fi
     done
-    unset conda_prefix
     # <<< conda initialize <<<
 
     # >>> mamba initialize >>>
@@ -68,9 +74,13 @@ _lazy_conda_init() {
             break
         fi
     done
-    unset mamba_prefix
     # <<< mamba initialize <<<
 
+    if command mamba &> /dev/null; then
+        alias conda='mamba'
+        alias cconda="$conda_prefix/bin/conda"  # keep conda accessible via cconda
+    fi
+    unset conda_prefix mamba_prefix
     "$@" # now run the requested command
 }
 # --- end of conda/mamba ---
