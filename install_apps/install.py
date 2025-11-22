@@ -29,7 +29,10 @@ def main() -> None:
     if not ensure_git_installed():
         raise RuntimeError("Git is required but could not be installed. Please install it manually.")
     # --- detect environment ---
-    env_ctx = EnvironmentContext.detect()
+    if args.mode == 'miniforge':
+        env_ctx = EnvironmentContext(has_sudo=False, home=Path.home(), local_bin=Path.home() / '.local' / 'bin')
+    else:
+        env_ctx = EnvironmentContext.detect()
     mode = choose_mode(env_ctx) if args.mode == 'auto' else args.mode
     env_ctx.print_info()
     # --- app list ---
