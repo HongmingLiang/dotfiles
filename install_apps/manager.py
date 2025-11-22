@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Iterable
 from pathlib import Path
 from subprocess import run
-from utils.context import EnvironmentContext
+from install_apps.context import EnvironmentContext
 from typing import Optional, Callable
 
 class PackageManager(ABC):
@@ -46,10 +46,13 @@ class PackageManagerRegistry:
         if name not in self._registry:
             raise ValueError(f"Package manager '{name}' is not registered.")
         return self._registry[name]
+    
+    def get_all_managers(self) -> list[str]:
+        return list(self._registry.keys())
 
 PACKAGE_MANAGER_REGISTRY = PackageManagerRegistry()
 
-@PACKAGE_MANAGER_REGISTRY.register("Homebrew")
+@PACKAGE_MANAGER_REGISTRY.register("brew")
 class Homebrew(PackageManager):
     def __init__(self, context: EnvironmentContext, name: str):
         super().__init__(context, name)
@@ -90,12 +93,12 @@ class Homebrew(PackageManager):
     def _link_binary(self, bin_name: str) -> None:
         print("[WARNING] Linking binaries via Homebrew is not implemented.")
 
-@PACKAGE_MANAGER_REGISTRY.register("Miniforge")
+@PACKAGE_MANAGER_REGISTRY.register("miniforge")
 class Miniforge(PackageManager):
     def __init__(self, context: EnvironmentContext, name: str, custom_bin_path: Optional[Path] = None):
         super().__init__(context, name)
         self.bin_path: Path | None = custom_bin_path
-        self.apps_env_name: str = "ds"
+        self.apps_env_name: str = "apps"
 
     def install_package_manager(self) -> None:
         super().install_package_manager()
@@ -162,11 +165,3 @@ class Miniforge(PackageManager):
         print(f"[INFO] Linking binary '{bin_name}' from {source_path} to {target_path}...")
         target_path.symlink_to(source_path)
         print(f"[LINK] {source_path} -> {target_path}")
-
-def test():
-    installer = PACKAGE_MANAGER_REGISTRY.get_manager("Homebrew")(EnvironmentContext.detect(), "test")
-    installer.ensure_available()
-    installer.install_package('tree')
-
-if __name__ == "__main__":
-    test()
