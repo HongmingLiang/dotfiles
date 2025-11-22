@@ -12,7 +12,7 @@ class PackageManager(ABC):
         self.is_installed: bool = False
 
     @abstractmethod
-    def install_package_manager(self):
+    def _install_package_manager(self):
         """Install the underlying package manager."""
         if self.is_installed:
             raise RuntimeError(f"{self.__class__.__name__} is already installed.")
@@ -57,8 +57,8 @@ class Homebrew(PackageManager):
     def __init__(self, context: EnvironmentContext, name: str):
         super().__init__(context, name)
 
-    def install_package_manager(self) -> bool:
-        super().install_package_manager()
+    def _install_package_manager(self) -> bool:
+        super()._install_package_manager()
         if not self.context.has_sudo:
             print("[WARNING] Sudo privileges are required to install Homebrew.")
 
@@ -79,7 +79,7 @@ class Homebrew(PackageManager):
             return True
 
         print("[INFO] Homebrew not found. Proceeding with installation.")
-        return self.install_package_manager()
+        return self._install_package_manager()
 
     def install_package(self, packages_list: list[str] | str, force_reinstall: bool = False) -> None:
         if not self.is_installed:
@@ -101,8 +101,8 @@ class Miniforge(PackageManager):
         self.bin_path: Path | None = custom_bin_path
         self.apps_env_name: str = "apps"
 
-    def install_package_manager(self) -> bool:
-        super().install_package_manager()
+    def _install_package_manager(self) -> bool:
+        super()._install_package_manager()
         print("[INFO] Installing Miniforge (Mamba)...")
         install_script: str = 'wget -O Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"'
         run(install_script, shell=True, check=True)
@@ -133,7 +133,7 @@ class Miniforge(PackageManager):
                 return True
         #end of for
         print("[INFO] Mamba not found in standard locations. Proceeding with installation.")
-        return self.install_package_manager()
+        return self._install_package_manager()
     
     def _check_env_exists(self) -> bool:
         if not self.is_installed:
@@ -150,11 +150,13 @@ class Miniforge(PackageManager):
     def install_package(self, packages_list: list[str] | str, force_reinstall: bool = False) -> None:
         if not self.is_installed:
             raise RuntimeError("Mamba is not installed. Call ensure_available() first.")
-        if not self._check_env_exists():
+        if self._check_env_exists():
+            print(f"[INFO] Mamba environment '{self.apps_env_name}' already exists.")
+        else:
             print(f"[INFO] Mamba environment '{self.apps_env_name}' does not exist. Creating it now.")
             self._create_env()
         print("[INFO] Package(s) installed via mamba:", packages_list)
-        install_cmd = [self.bin_path, 'install', '-n', self.apps_env_name, '-y','--force-reinstall'] if force_reinstall else [self.bin_path, 'install', '-n', self.apps_env_name, '-y']
+        install_cmd = [str(self.bin_path), 'install', '-n', self.apps_env_name, '-y','--force-reinstall'] if force_reinstall else [str(self.bin_path), 'install', '-n', self.apps_env_name, '-y']
         install_cmd = install_cmd + list(packages_list) if isinstance(packages_list, list) else install_cmd + [packages_list]
         run(install_cmd, check=True)
         print("[INFO] Package installation completed.")
