@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from context import EnvironmentContext
 from manager import PACKAGE_MANAGER_REGISTRY
 from pathlib import Path
@@ -51,7 +52,7 @@ def main() -> None:
         manager = PACKAGE_MANAGER_REGISTRY.get_manager(mode)(context=env_ctx, name=mode)
 
     manager.ensure_available()
-    # manager.install_package(packages_list=to_install, force_reinstall=args.force_reinstall)
+    manager.install_package(packages_list=to_install, force_reinstall=args.force_reinstall)
 
 if __name__ == "__main__":
     main()
