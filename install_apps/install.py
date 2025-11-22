@@ -3,6 +3,7 @@ from context import EnvironmentContext
 from manager import PACKAGE_MANAGER_REGISTRY
 from pathlib import Path
 from app import AppRegistry
+from check_git import ensure_git_installed
 
 APP_LISTS_DIR = Path(__file__).parent / 'app_lists'
 
@@ -23,6 +24,10 @@ def choose_mode(env_ctx: EnvironmentContext) -> str:
 
 def main() -> None:
     args = parse_args()
+    # --- check git ---
+    print("\n=== Checking Git Installation ===")
+    if not ensure_git_installed():
+        raise RuntimeError("Git is required but could not be installed. Please install it manually.")
     # --- detect environment ---
     env_ctx = EnvironmentContext.detect()
     mode = choose_mode(env_ctx) if args.mode == 'auto' else args.mode
