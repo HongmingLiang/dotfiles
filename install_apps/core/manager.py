@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from typing import Iterable
 from pathlib import Path
 from subprocess import run
-from context import EnvironmentContext
 from typing import Optional, Callable
+from core.context import EnvironmentContext
 
 class PackageManager(ABC):
     def __init__(self, context: EnvironmentContext, name: str):
