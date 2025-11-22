@@ -56,7 +56,9 @@ def main() -> None:
     else:
         manager = PACKAGE_MANAGER_REGISTRY.get_manager(mode)(context=env_ctx, name=mode)
 
-    manager.ensure_available()
+    if not manager.ensure_available():
+        raise RuntimeError(f"Failed to ensure package manager '{mode}' is available.")
+    # --- install apps ---
     manager.install_package(packages_list=to_install, force_reinstall=args.force_reinstall)
 
 if __name__ == "__main__":
