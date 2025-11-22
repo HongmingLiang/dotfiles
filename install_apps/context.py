@@ -10,7 +10,7 @@ class EnvironmentContext:
     
     @classmethod
     def detect(cls) -> "EnvironmentContext":
-        has_sudo = (run(['sudo', 'echo', '"detect sudo privileges"'], shell=True ,capture_output=True).returncode == 0)
+        has_sudo = (run( 'sudo echo "detect sudo privileges" ' , shell=True ,capture_output=True).returncode == 0)
         home = Path.home()
         local_bin = home / '.local' / 'bin'
         return cls(has_sudo=has_sudo, home=home, local_bin=local_bin)
