@@ -1,5 +1,6 @@
+vim
 fastfetch
 tree
 zoxide
 yazi
-vim
+fzf
