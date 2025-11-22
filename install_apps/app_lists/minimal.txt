@@ -1,0 +1,5 @@
+fastfetch
+tree
+zoxide
+yazi
+vim
