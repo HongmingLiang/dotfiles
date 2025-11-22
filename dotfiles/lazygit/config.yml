@@ -1,0 +1,27 @@
+# Tokyo-night theme from https://github.com/mohseenrm/lazygit-tokyonight
+gui:
+  nerdFontsVersion: "3"
+  theme:
+    activeBorderColor:
+      - "#4fd6be"
+      - bold
+    inactiveBorderColor:
+      - "#394b70"
+    optionsTextColor:
+      - "#89b4fa"
+    selectedLineBgColor:
+      - '#414559' # cherry-pick from https://github.com/catppuccin/lazygit/blob/main/themes-mergable/frappe/blue.yml
+    cherryPickedCommitBgColor:
+      - "#ff007c"
+    cherryPickedCommitFgColor:
+      - "#65bcff"
+    unstagedChangesColor:
+      - "#ff757f"
+    defaultFgColor:
+      - "#c8d3f5"
+    searchingActiveBorderColor:
+      - "#ffc777"
+
+  authorColors:
+    "*": "#86e1fc"
+
