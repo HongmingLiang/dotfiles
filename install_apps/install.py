@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-from context import EnvironmentContext
-from manager import PACKAGE_MANAGER_REGISTRY
 from pathlib import Path
-from app import AppRegistry
-from check_git import ensure_git_installed
+from core.context import EnvironmentContext
+from core.manager import PACKAGE_MANAGER_REGISTRY
+from core.app import AppRegistry
+from utils.check_git import ensure_git_installed
 
 APP_LISTS_DIR = Path(__file__).parent / 'app_lists'
 
