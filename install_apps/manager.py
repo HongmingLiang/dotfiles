@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Iterable
 from pathlib import Path
 from subprocess import run
-from install_apps.context import EnvironmentContext
+from context import EnvironmentContext
 from typing import Optional, Callable
 
 class PackageManager(ABC):
