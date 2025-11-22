@@ -138,7 +138,7 @@ class Miniforge(PackageManager):
     def _check_env_exists(self) -> bool:
         if not self.is_installed:
             raise RuntimeError("Mamba is not installed. Call ensure_available() first.")
-        return run(f'{str(self.bin_path)} env list | grep {self.apps_env_name} -w', shell=True, capture_output=True).stdout is not None
+        return run(f'{str(self.bin_path)} env list | grep {self.apps_env_name} -w', shell=True, capture_output=True).returncode == 0
     
     def _create_env(self) -> None:
         if not self.is_installed:
