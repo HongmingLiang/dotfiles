@@ -5,7 +5,10 @@ set -e
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOTFILES_SRC="$DOTFILES_DIR/dotfiles"
 DOTFILES_HOME="$DOTFILES_SRC/home"
+
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+
 BACKUP_DIR="$HOME/.dotfiles_backup/$(date +%Y%m%d_%H%M%S)"
 
 # parse args
@@ -53,8 +56,10 @@ append_backup_list() {
     fi
 }
 
-# create backup dir (or show in dry-run)
-exec_cmd mkdir -p "$BACKUP_DIR"
+exec_cmd mkdir -p "$BACKUP_DIR" # create backup dir (or show in dry-run)
+exec_cmd mkdir -p "$XDG_DATA_HOME/bash" # mkdir for bash history file (or show in dry run)
+exec_cmd mkdir -p "$HOME/.local/bin" # mkdir for local bin directory (or show in dry run)
+
 # initialize backup list (dry-run prints, real run truncates/creates file)
 if [ "$DRY_RUN" -eq 1 ]; then
     echo "[DRY] create/empty $BACKUP_DIR/backup-list.txt"
