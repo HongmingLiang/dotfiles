@@ -1,12 +1,19 @@
-# ~/.bashrc
 # If not running interactively, don't do anything
 case $- in
     *i*) ;;
       *) return;;
 esac
 
+# XDG Base Directory
+export XDG_CONFIG_HOME="$HOME/.config"
+export XDG_DATA_HOME="$HOME/.local/share"
+export XDG_CACHE_HOME="$HOME/.cache"
+export XDG_STATE_HOME="$HOME/.local/state"
+
+# editor
 export EDITOR=vim
 [ $EDITOR = "vim" ] && export VIMINIT="source $XDG_CONFIG_HOME/vim/vimrc"
+
 export LC_ALL=C.UTF-8
 export LANG=C.UTF-8
 export LANGUAGE=C.UTF-8
@@ -27,13 +34,6 @@ if command -v brew >/dev/null 2>&1; then # if brew is in PATH
     eval "$(brew shellenv)"
 elif [ -f /home/linuxbrew/.linuxbrew/bin/brew ]; then
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-fi
-
-# zoxide
-if command -v zoxide &> /dev/null; then
-    eval "$(zoxide init bash --cmd cd)"
-    alias z='__zoxide_z'
-    alias zi='__zoxide_zi'
 fi
 
 # --- conda/mamba  ---
@@ -105,7 +105,14 @@ _lazy_tex_init() {
 
 # ===================== Shell Features =====================
 
-# aliases
+# zoxide: better `cd`
+if command -v zoxide &> /dev/null; then
+    eval "$(zoxide init bash --cmd cd)"
+    alias z='__zoxide_z'
+    alias zi='__zoxide_zi'
+fi
+
+# other aliases
 if [ -x /usr/bin/dircolors ]; then
     test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
     alias ls='ls --color=auto'
@@ -124,3 +131,4 @@ if command -v git >/dev/null 2>&1; then
 else
     PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 fi
+
