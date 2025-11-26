@@ -2,4 +2,9 @@
 [mgr]
 show_hidden = true # Show hidden files
 show_symlink = true # Show the path of the symlink file point to, after the filename
+linemode = "size"
+
+[preview]
+wrap = "yes"
+image_delay = 100
 
