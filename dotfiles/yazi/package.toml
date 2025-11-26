@@ -8,6 +8,11 @@ use = "yazi-rs/plugins:smart-paste"
 rev = "2301ff8"
 hash = "75fd60b2df7115e0a6ca31a6a804d320"
 
+[[plugin.deps]]
+use = "yazi-rs/plugins:toggle-pane"
+rev = "eaf6920"
+hash = "8a7c58225816a163a6e8730c0adafbc8"
+
 [[flavor.deps]]
 use = "BennyOe/tokyo-night"
 rev = "5f56364"

@@ -1,6 +1,5 @@
 # --- navigation ---
-# plugin: smart-paste.yazi
-[[mgr.prepend_keymap]]
+[[mgr.prepend_keymap]] # plugin: smart-paste.yazi
 on   = "p"
 run  = "plugin smart-paste"
 desc = "Paste into the hovered directory or CWD"
@@ -21,6 +20,10 @@ run = "cd ~/Downloads"
 [[mgr.prepend_keymap]]
 on = [ "g", "P" ]
 run = "cd ~/Projects"
+
+[[mgr.prepend_keymap]] # plugin: confirm-quit
+on  = "q"
+run = "plugin confirm-quit"
 
 # --- view ---
 ## plugin: toggle-pane
