@@ -8,6 +8,7 @@ DOTFILES_HOME="$DOTFILES_SRC/home"
 
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 
 BACKUP_DIR="$HOME/.dotfiles_backup/$(date +%Y%m%d_%H%M%S)"
 
@@ -56,9 +57,9 @@ append_backup_list() {
     fi
 }
 
-exec_cmd mkdir -p "$BACKUP_DIR" # create backup dir (or show in dry-run)
-exec_cmd mkdir -p "$XDG_DATA_HOME/bash" # mkdir for bash history file (or show in dry run)
-exec_cmd mkdir -p "$HOME/.local/bin" # mkdir for local bin directory (or show in dry run)
+exec_cmd mkdir -p "$BACKUP_DIR" # create backup dir
+exec_cmd mkdir -p "$HOME/.local/bin" # mkdir for local bin directory
+exec_cmd mkdir -p "$XDG_DATA_HOME/bash" # mkdir for bash history file
 
 # initialize backup list (dry-run prints, real run truncates/creates file)
 if [ "$DRY_RUN" -eq 1 ]; then

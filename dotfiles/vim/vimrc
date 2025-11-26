@@ -7,9 +7,14 @@ endif
 if empty($XDG_DATA_HOME)
    let $XDG_DATA_HOME = expand('~/.local/share')
 endif
-set directory=$XDG_CACHE_HOME/vim/swap,~/,/tmp
-set backupdir=$XDG_CACHE_HOME/vim/backup,~/,/tmp
-set undodir=$XDG_CACHE_HOME/vim/undo,~/,/tmp
+
+silent! call mkdir($XDG_CACHE_HOME . '/vim/swap', 'p', 0700)
+silent! call mkdir($XDG_CACHE_HOME . '/vim/backup', 'p', 0700)
+silent! call mkdir($XDG_CACHE_HOME . '/vim/undo', 'p', 0700)
+
+set directory=$XDG_CACHE_HOME/vim/swap//,~/,/tmp/
+set backupdir=$XDG_CACHE_HOME/vim/backup//,~/,/tmp/
+set undodir=$XDG_CACHE_HOME/vim/undo//,~/,/tmp/
 set viminfo+=n$XDG_CACHE_HOME/vim/viminfo
 set runtimepath+=$XDG_CONFIG_HOME/vim,$XDG_CONFIG_HOME/vim/after,$VIM,$VIMRUNTIME
 let $MYVIMRC = "$XDG_CONFIG_HOME/vim/vimrc"
@@ -34,8 +39,8 @@ endif " Enable syntax highlighting
 
 set encoding=utf8 nobomb
 set number " Show line numbers
-set cursorline " Highlight current line
-set ruler " Show cursor position
+set ruler
+set relativenumber
 set showmode " Show current mode
 set showcmd " Show command in status line
 
