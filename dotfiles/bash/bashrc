@@ -105,13 +105,6 @@ _lazy_tex_init() {
 
 # ===================== Shell Features =====================
 
-# zoxide: better `cd`
-if command -v zoxide &> /dev/null; then
-    eval "$(zoxide init bash --cmd cd)"
-    alias z='__zoxide_z'
-    alias zi='__zoxide_zi'
-fi
-
 # other aliases
 if [ -x /usr/bin/dircolors ]; then
     test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
@@ -125,10 +118,20 @@ for f in "${XDG_CONFIG_HOME:-$HOME/.config}/bash/bash_aliases" "$HOME/.bash_alia
     [ -f "$f" ] && source "$f" && break
 done
 
-# PS1 with Git branch info
-if command -v git >/dev/null 2>&1; then
+# shell prompt
+if command -v starship >/dev/null 2>&1; then # starship
+    export STARSHIP_CONFIG="$XDG_CONFIG_HOME/starship/starship.toml"
+    eval "$(starship init bash)"
+elif command -v git >/dev/null 2>&1; then # PS1 with Git branch info
     PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[01;33m\]$(git branch 2>/dev/null | sed -n "s/^\* \(.*\)/ (\1)/p")\[\033[00m\]\$ '
 else
     PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+fi
+
+# zoxide: better `cd`
+if command -v zoxide &> /dev/null; then
+    eval "$(zoxide init bash --cmd cd)"
+    alias z='__zoxide_z'
+    alias zi='__zoxide_zi'
 fi
 
