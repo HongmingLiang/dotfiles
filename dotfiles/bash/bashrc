@@ -23,7 +23,10 @@ HISTFILESIZE=2000
 shopt -s histappend
 shopt -s checkwinsize
 
-# ===================== add tools to PATH =====================
+# ==================== source local file ====================
+[ -f "$XDG_STATE_HOME/bash/bashrc" ] && source "$XDG_STATE_HOME/bash/bashrc"
+
+# ==================== add tools to PATH ===================
 
 # --- Homebrew  ---
 if command -v brew > /dev/null 2>&1; then # if brew is in PATH
