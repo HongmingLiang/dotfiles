@@ -1,7 +1,7 @@
 # If not running interactively, don't do anything
 case $- in
-    *i*) ;;
-      *) return;;
+  *i*) ;;
+  *) return ;;
 esac
 
 # XDG Base Directory
@@ -9,10 +9,6 @@ export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_DATA_HOME="$HOME/.local/share"
 export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_STATE_HOME="$HOME/.local/state"
-
-# editor
-export EDITOR=vim
-[ $EDITOR = "vim" ] && export VIMINIT="source $XDG_CONFIG_HOME/vim/vimrc"
 
 export LC_ALL=C.UTF-8
 export LANG=C.UTF-8
@@ -30,10 +26,20 @@ shopt -s checkwinsize
 # ===================== add tools to PATH =====================
 
 # --- Homebrew  ---
-if command -v brew >/dev/null 2>&1; then # if brew is in PATH 
-    eval "$(brew shellenv)"
+if command -v brew > /dev/null 2>&1; then # if brew is in PATH
+  eval "$(brew shellenv)"
 elif [ -f /home/linuxbrew/.linuxbrew/bin/brew ]; then
-    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+
+# --- editor ---
+if command -v nvim > /dev/null 2>&1; then
+  export EDITOR=nvim
+  alias vvim="$(which vim)"
+  alias vim='nvim'
+else
+  export EDITOR=vim
+  export VIMINIT="source $XDG_CONFIG_HOME/vim/vimrc"
 fi
 
 # --- conda/mamba  ---
@@ -41,47 +47,48 @@ conda() { _lazy_conda_init conda "$@"; }
 mamba() { _lazy_conda_init mamba "$@"; }
 
 _lazy_conda_init() {
-    unset -f conda mamba _lazy_conda_init # unset functions
+  unset -f conda mamba _lazy_conda_init # unset functions
 
-    # >>> conda initialize >>>
-    # if conda isn't installed in one of these, adjust accordingly. Or create symbolic links.
-    for conda_prefix in "$HOME/miniforge3" "$HOME/miniconda3" "$HOME/anaconda3"; do
-        if [ -f "$conda_prefix/bin/conda" ]; then
-            __conda_setup="$("$conda_prefix/bin/conda" 'shell.bash' 'hook' 2> /dev/null)"
-            if [ $? -eq 0 ]; then
-                eval "$__conda_setup"
-            else
-                [ -f "$conda_prefix/etc/profile.d/conda.sh" ] && . "$conda_prefix/etc/profile.d/conda.sh" || export PATH="$conda_prefix/bin:$PATH"
-            fi
-            unset __conda_setup
-            break
-        fi
-    done
-    # <<< conda initialize <<<
-
-    # >>> mamba initialize >>>
-    for mamba_prefix in "$HOME/miniforge3" "$HOME/miniconda3"; do # if mamba isn't installed in one of these, adjust accordingly
-        if [ -f "$mamba_prefix/bin/mamba" ]; then
-            export MAMBA_EXE="$mamba_prefix/bin/mamba"
-            export MAMBA_ROOT_PREFIX="$mamba_prefix"
-            __mamba_setup="$("$MAMBA_EXE" shell hook --shell bash --root-prefix "$MAMBA_ROOT_PREFIX" 2> /dev/null)"
-            if [ $? -eq 0 ]; then
-                eval "$__mamba_setup"
-            else
-                alias mamba="$MAMBA_EXE"
-            fi
-            unset __mamba_setup
-            break
-        fi
-    done
-    # <<< mamba initialize <<<
-
-    if command mamba &> /dev/null; then
-        alias conda='mamba'
-        alias cconda="$conda_prefix/bin/conda"  # keep conda accessible via cconda
+  # >>> conda initialize >>>
+  # if conda isn't installed in one of these, adjust accordingly. Or create symbolic links.
+  for __conda_prefix in "$HOME/miniforge3" "$HOME/miniconda3" "$HOME/anaconda3"; do
+    if [ -f "$__conda_prefix/bin/conda" ]; then
+      __conda_setup="$("$__conda_prefix/bin/conda" 'shell.bash' 'hook' 2> /dev/null)"
+      if [ $? -eq 0 ]; then
+        eval "$__conda_setup"
+      else
+        [ -f "$__conda_prefix/etc/profile.d/conda.sh" ] && . "$__conda_prefix/etc/profile.d/conda.sh" || export PATH="$__conda_prefix/bin:$PATH"
+      fi
+      unset __conda_setup
+      break
     fi
-    unset conda_prefix mamba_prefix
-    "$@" # now run the requested command
+  done
+  unset __conda_prefix
+  # <<< conda initialize <<<
+
+  # >>> mamba initialize >>>
+  for __mamba_prefix in "$HOME/miniforge3" "$HOME/miniconda3"; do # if mamba isn't installed in one of these, adjust accordingly
+    if [ -f "$__mamba_prefix/bin/mamba" ]; then
+      export MAMBA_EXE="$__mamba_prefix/bin/mamba"
+      export MAMBA_ROOT_PREFIX="$__mamba_prefix"
+      __mamba_setup="$("$MAMBA_EXE" shell hook --shell bash --root-prefix "$MAMBA_ROOT_PREFIX" 2> /dev/null)"
+      if [ $? -eq 0 ]; then
+        eval "$__mamba_setup"
+      else
+        alias mamba="$MAMBA_EXE"
+      fi
+      unset __mamba_setup
+      break
+    fi
+  done
+  unset __mamba_prefix
+  # <<< mamba initialize <<<
+
+  if command -v mamba &> /dev/null; then
+    alias cconda="$(which conda)" # keep conda accessible via cconda
+    alias conda='mamba'
+  fi
+  "$@" # now run the requested command
 }
 # --- end of conda/mamba ---
 
@@ -89,17 +96,17 @@ _lazy_conda_init() {
 tex() { _lazy_tex_init tex "$@"; }
 
 _lazy_tex_init() {
-    unset -f _lazy_tex_init tex
-    for tex_year in "2027" "2026" "2025" "2024" "2023"; do
-        if [ -d "/usr/local/texlive/$tex_year/bin/x86_64-linux" ]; then
-            export PATH="/usr/local/texlive/$tex_year/bin/x86_64-linux:$PATH"
-            export MANPATH="/usr/local/texlive/$tex_year/texmf-dist/doc/man:$MANPATH"
-            export INFOPATH="/usr/local/texlive/$tex_year/texmf-dist/doc/info:$INFOPATH"
-            break
-        fi
-    done
-    unset tex_year
-    "$@" # now run the requested command
+  unset -f _lazy_tex_init tex
+  for tex_year in "2027" "2026" "2025" "2024" "2023"; do
+    if [ -d "/usr/local/texlive/$tex_year/bin/x86_64-linux" ]; then
+      export PATH="/usr/local/texlive/$tex_year/bin/x86_64-linux:$PATH"
+      export MANPATH="/usr/local/texlive/$tex_year/texmf-dist/doc/man:$MANPATH"
+      export INFOPATH="/usr/local/texlive/$tex_year/texmf-dist/doc/info:$INFOPATH"
+      break
+    fi
+  done
+  unset tex_year
+  "$@" # now run the requested command
 }
 # --- end of texlive ---
 
@@ -107,31 +114,30 @@ _lazy_tex_init() {
 
 # other aliases
 if [ -x /usr/bin/dircolors ]; then
-    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
-    alias ls='ls --color=auto'
-    alias grep='grep --color=auto'
-    alias fgrep='fgrep --color=auto'
-    alias egrep='egrep --color=auto'
+  test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+  alias ls='ls --color=auto'
+  alias grep='grep --color=auto'
+  alias fgrep='fgrep --color=auto'
+  alias egrep='egrep --color=auto'
 fi
 
 for f in "${XDG_CONFIG_HOME:-$HOME/.config}/bash/bash_aliases" "$HOME/.bash_aliases"; do
-    [ -f "$f" ] && source "$f" && break
+  [ -f "$f" ] && source "$f" && break
 done
 
 # shell prompt
-if command -v starship >/dev/null 2>&1; then # starship
-    export STARSHIP_CONFIG="$XDG_CONFIG_HOME/starship/starship.toml"
-    eval "$(starship init bash)"
-elif command -v git >/dev/null 2>&1; then # PS1 with Git branch info
-    PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[01;33m\]$(git branch 2>/dev/null | sed -n "s/^\* \(.*\)/ (\1)/p")\[\033[00m\]\$ '
+if command -v starship > /dev/null 2>&1; then # starship
+  export STARSHIP_CONFIG="$XDG_CONFIG_HOME/starship/starship.toml"
+  eval "$(starship init bash)"
+elif command -v git > /dev/null 2>&1; then # PS1 with Git branch info
+  PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[01;33m\]$(git branch 2>/dev/null | sed -n "s/^\* \(.*\)/ (\1)/p")\[\033[00m\]\$ '
 else
-    PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+  PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
 fi
 
 # zoxide: better `cd`
 if command -v zoxide &> /dev/null; then
-    eval "$(zoxide init bash --cmd cd)"
-    alias z='__zoxide_z'
-    alias zi='__zoxide_zi'
+  eval "$(zoxide init bash --cmd cd)"
+  alias z='__zoxide_z'
+  alias zi='__zoxide_zi'
 fi
-
