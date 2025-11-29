@@ -1,6 +1,8 @@
-# Tokyo-night theme from https://github.com/mohseenrm/lazygit-tokyonight
 gui:
+  cursor:
+    style: "line"
   nerdFontsVersion: "3"
+  # Tokyo-night theme from https://github.com/mohseenrm/lazygit-tokyonight
   theme:
     activeBorderColor:
       - "#4fd6be"
