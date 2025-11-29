@@ -39,6 +39,13 @@ return {
           end
         end, { "i", "s" }),
       })
+
+      opts.window = {
+        completion = cmp.config.window.bordered({ winblend = 75, border = "rounded" }),
+        documentation = cmp.config.window.bordered({ winblend = 75, border = "rounded" }),
+      }
+
+      vim.api.nvim_set_hl(0, "CmpGhostText", { link = "Comment", default = true, force = true })
     end,
   },
 }
