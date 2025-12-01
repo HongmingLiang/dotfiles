@@ -99,7 +99,7 @@ _lazy_conda_init() {
 # tmux and tmuxifier
 if command -v tmux &> /dev/null; then
   __tmux_conf_dir="$XDG_CONFIG_HOME/tmux"
-  export PATH="$HOME/.tmux/plugins/tmuxifier/bin:$PATH"
+  export PATH="$XDG_DATA_HOME/tmux/plugins/tmuxifier/bin:$PATH"
   eval "$(tmuxifier init -)"
   export TMUXIFIER_LAYOUT_PATH="$__tmux_conf_dir/tmuxifier/layouts"
   # tmux aliases
