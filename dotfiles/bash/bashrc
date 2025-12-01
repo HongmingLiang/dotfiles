@@ -142,6 +142,26 @@ if [ -x /usr/bin/dircolors ]; then
   alias egrep='egrep --color=auto'
 fi
 
+# eza
+if command -v eza > /dev/null 2>&1; then
+  alias ls='eza --icons --git --group-directories-first'
+fi
+
+# bat: better `cat`
+if command -v bat > /dev/null 2>&1; then
+  export BAT_CONFIG_PATH="$XDG_CONFIG_HOME/bat/config"
+  export BAT_CONFIG_DIR="$XDG_CONFIG_HOME/bat"
+  alias cat='bat --paging=never'
+  alias catp='bat --paging=always'
+  batdiff() { # show git diff with bat
+    git diff --name-only --relative --diff-filter=d -z | xargs -0 bat --diff
+  }
+  help() { # help command with bat formatting
+    "$@" --help 2>&1 | bat --plain --language=help
+  }
+fi
+
+# source bash_aliases if exists
 for f in "${XDG_CONFIG_HOME:-$HOME/.config}/bash/bash_aliases" "$HOME/.bash_aliases"; do
   [ -f "$f" ] && source "$f" && break
 done

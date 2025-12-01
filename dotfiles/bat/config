@@ -1,0 +1,10 @@
+# recipe from README.md of bat: https://github.com/sharkdp/bat
+
+# Set the theme to "Visual Studio Dark+"
+--theme="Visual Studio Dark+"
+
+# Show line numbers, Git modifications and file header (but no grid)
+--style="numbers,changes,header,grid"
+
+# Use italic text on the terminal
+--italic-text=always
