@@ -14,6 +14,10 @@ on = [ "g", "d" ]
 run = "cd ~/dotfiles"
 
 [[mgr.prepend_keymap]]
+on = [ "g", "l" ]
+run = "cd ~/.local"
+
+[[mgr.prepend_keymap]]
 on = [ "g", "D" ]
 run = "cd ~/Downloads"
 
