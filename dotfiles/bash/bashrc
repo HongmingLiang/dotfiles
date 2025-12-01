@@ -94,6 +94,9 @@ _lazy_conda_init() {
   fi
   "$@" # now run the requested command
 }
+# aliases for conda/mamba
+alias ca='conda activate'
+alias ma='mamba activate'
 # --- end of conda/mamba ---
 
 # tmux and tmuxifier
@@ -131,7 +134,7 @@ done
 unset tex_year
 # --- end of texlive ---
 
-# other aliases
+# colorful output for ls and grep
 if [ -x /usr/bin/dircolors ]; then
   test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
   alias ls='ls --color=auto'
@@ -140,13 +143,18 @@ if [ -x /usr/bin/dircolors ]; then
   alias egrep='egrep --color=auto'
 fi
 
-# fzf
-[ command -v fzf ] > /dev/null 2>&1 && eval "$(fzf --bash)" # pick from fzf README: # Set up fzf key bindings and fuzzy completion
-
 # eza
 if command -v eza > /dev/null 2>&1; then
   alias ls='eza --icons --git --group-directories-first'
 fi
+
+# aliases for ls
+alias ll='ls -alhF'
+alias la='ls -A'
+alias l='ls -hF'
+
+# fzf
+[ command -v fzf ] > /dev/null 2>&1 && eval "$(fzf --bash)" # pick from fzf README: # Set up fzf key bindings and fuzzy completion
 
 # bat: better `cat`
 if command -v bat > /dev/null 2>&1; then
@@ -160,6 +168,19 @@ if command -v bat > /dev/null 2>&1; then
   help() { # help command with bat formatting
     "$@" --help 2>&1 | bat --plain --language=help
   }
+fi
+
+# dust: better `du`
+if command -v dust > /dev/null 2>&1; then
+  for i in {1..5}; do
+    alias "du$i"="dust -d $i -p"
+  done
+  alias du="dust -p"
+else
+  for i in {1..5}; do
+    alias "du$i"="du -hd $i"
+  done
+  alias du="du -h"
 fi
 
 # source bash_aliases if exists

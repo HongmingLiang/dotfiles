@@ -1,10 +1,5 @@
 alias e='exit'
 
-# ls
-alias ll='ls -alhF'
-alias la='ls -A'
-alias l='ls -hF'
-
 # cd
 alias cd..='cd ..'
 alias ..='cd ..'
@@ -14,9 +9,8 @@ alias ....='cd ../../..'
 # clear screen
 alias clr='clear'
 
-# disk usage
+# disk and memory usage
 alias df='df -h'
-alias du='du -h'
 alias free='free -h'
 
 # git
@@ -27,21 +21,14 @@ alias gc='git commit'
 alias gl='git log --oneline'
 alias lg='lazygit'
 
-# conda and mamba
-alias ca='conda activate'
-alias ma='mamba activate'
-
 # docker
 alias d='docker'
 alias dc='docker compose'
 
 # tree
-alias tree="tree -alC -L 2 -I '.git'"
-alias tree1="tree -alC -L 1 -I '.git'"
-alias tree2="tree -alC -L 2 -I '.git'"
-alias tree3="tree -alC -L 3 -I '.git'"
-alias tree4="tree -alC -L 4 -I '.git'"
-alias tree5="tree -alC -L 5 -I '.git'"
+for i in {1..5}; do
+  alias "tree$i"="tree -alC -L $i -I '.git'"
+done
 
 # yazi
 alias yy="yazi"
