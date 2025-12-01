@@ -131,8 +131,6 @@ done
 unset tex_year
 # --- end of texlive ---
 
-# ===================== Shell Features =====================
-
 # other aliases
 if [ -x /usr/bin/dircolors ]; then
   test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
@@ -141,6 +139,9 @@ if [ -x /usr/bin/dircolors ]; then
   alias fgrep='fgrep --color=auto'
   alias egrep='egrep --color=auto'
 fi
+
+# fzf
+[ command -v fzf ] > /dev/null 2>&1 && eval "$(fzf --bash)" # pick from fzf README: # Set up fzf key bindings and fuzzy completion
 
 # eza
 if command -v eza > /dev/null 2>&1; then
