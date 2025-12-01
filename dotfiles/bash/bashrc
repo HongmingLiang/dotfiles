@@ -188,6 +188,12 @@ for f in "${XDG_CONFIG_HOME:-$HOME/.config}/bash/bash_aliases" "$HOME/.bash_alia
   [ -f "$f" ] && source "$f" && break
 done
 
+# gping
+if command -v gping > /dev/null 2>&1; then
+  alias pping='$(which ping)' # keep original ping accessible via pping
+  alias ping='gping'
+fi
+
 # shell prompt
 if command -v starship > /dev/null 2>&1; then # starship
   export STARSHIP_CONFIG="$XDG_CONFIG_HOME/starship/starship.toml"
