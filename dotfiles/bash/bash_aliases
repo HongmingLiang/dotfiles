@@ -1,7 +1,11 @@
+alias e='exit'
+
 # ls
 alias ll='ls -alhF'
 alias la='ls -A'
 alias l='ls -CF'
+
+# cd
 alias cd..='cd ..'
 alias ..='cd ..'
 alias ...='cd ../..'
@@ -20,7 +24,7 @@ alias g='git'
 alias gs='git status'
 alias ga='git add'
 alias gc='git commit'
-alias gl='git log'
+alias gl='git log --oneline'
 alias lg='lazygit'
 
 # conda and mamba
