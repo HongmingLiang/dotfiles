@@ -2,11 +2,9 @@
 
 return {
   {
-    "folke/tokyonight.nvim",
-    opts = {
-      on_colors = function(colors)
-        colors.comment = "#9aa5ce"
-      end,
-    },
+    "HiPhish/rainbow-delimiters.nvim",
+    submodules = false,
+    main = "rainbow-delimiters.setup",
+    opts = {},
   },
 }

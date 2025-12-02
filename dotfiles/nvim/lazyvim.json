@@ -3,6 +3,7 @@
     "lazyvim.plugins.extras.ai.avante",
     "lazyvim.plugins.extras.ai.copilot",
     "lazyvim.plugins.extras.coding.nvim-cmp",
+    "lazyvim.plugins.extras.editor.telescope",
     "lazyvim.plugins.extras.lang.markdown",
     "lazyvim.plugins.extras.lang.python"
   ],
