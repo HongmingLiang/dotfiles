@@ -8,4 +8,5 @@ local opt = vim.opt
 opt.wrap = true
 opt.linebreak = true
 opt.breakindent = true
+opt.pumblend = 0
 ----- end of my custom configuration -----

@@ -8,8 +8,16 @@ return {
   {
     "catppuccin/nvim",
     opts = {
+      flavour = "mocha",
       background = { light = "latte", dark = "mocha" },
       transparent_background = true,
+      float = {
+        transparent = true,
+      },
+      integrations = {
+        rainbow_delimiters = true,
+      },
+      auto_integrations = true,
     },
   },
   {
