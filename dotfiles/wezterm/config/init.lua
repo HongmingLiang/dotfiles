@@ -1,10 +1,5 @@
 local wezterm = require('wezterm')
 
-wezterm.on('gui-startup', function(cmd)
-local tab, pane, window = wezterm.mux.spawn_window(cmd or {})
-window:gui_window():maximize()
-end)
-
 ---@class Config
 ---@field options table
 local Config = {}
