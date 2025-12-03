@@ -22,6 +22,7 @@ return {
   },
   {
     "folke/tokyonight.nvim",
+    enable = false,
     opts = {
       on_colors = function(colors)
         colors.comment = "#9aa5ce"
