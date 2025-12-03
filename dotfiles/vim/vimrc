@@ -61,6 +61,11 @@ set mouse=a " Enable mouse support
 let mapleader=" "
 map <F1> :help<CR>
 nnoremap <leader>w :w<CR>
+" Add Ctrl+S binding for saving in insert and normal modes
+inoremap <C-s> <Esc>:w<CR>i
+nnoremap <C-s> :w<CR>
+" Add Q binding for exiting in normal mode
+nnoremap Q :q<CR>
 nnoremap <leader>q :q<CR>
 nnoremap <leader>wq :wq<CR>
 nnoremap <leader>r :source $XDG_CONFIG_HOME/vim/vimrc<CR>
