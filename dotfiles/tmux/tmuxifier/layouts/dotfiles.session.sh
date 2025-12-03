@@ -1,11 +1,11 @@
 session_root "$HOME/dotfiles"
 
 if initialize_session "dotfiles"; then
-  new_window "edit-dotfiles"
-  new_window "lazygit-dotfiles"
+  new_window "$EDITOR"
+  new_window "lazygit"
   run_cmd "lazygit"
 
-  select_window "edit-dotfiles"
+  select_window "$EDITOR"
   run_cmd "$EDITOR ."
 fi
 
