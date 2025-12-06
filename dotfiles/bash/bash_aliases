@@ -1,3 +1,4 @@
+# exit
 alias e='exit'
 
 # cd
@@ -12,6 +13,9 @@ alias clr='clear'
 # disk and memory usage
 alias df='df -h'
 alias free='free -h'
+
+# general process searching
+alias psg='ps aux | grep -v grep | grep -i -e VSZ -e'
 
 # git
 alias g='git'

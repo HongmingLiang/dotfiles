@@ -95,8 +95,14 @@ _lazy_conda_init() {
   "$@" # now run the requested command
 }
 # aliases for conda/mamba
-alias ca='conda activate'
-alias ma='mamba activate'
+alias ma='mamba'
+alias co='conda'
+alias coa='conda activate'
+alias maa='mamba activate'
+alias cod='conda deactivate'
+alias mad='mamba deactivate'
+alias coe='conda env'
+alias mae='mamba env'
 # --- end of conda/mamba ---
 
 # tmux and tmuxifier
@@ -145,7 +151,7 @@ fi
 
 # eza
 if command -v eza > /dev/null 2>&1; then
-  alias ls='eza --icons --git --group-directories-first'
+  alias ls='eza --group --icons --git --group-directories-first'
 fi
 
 # aliases for ls
