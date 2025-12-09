@@ -2,28 +2,28 @@ gui:
   cursor:
     style: "line"
   nerdFontsVersion: "3"
-  # Tokyo-night theme from https://github.com/mohseenrm/lazygit-tokyonight
+  # catppuccin mocha blue from: https://github.com/catppuccin/lazygit/blob/main/themes/mocha/blue.yml
   theme:
     activeBorderColor:
-      - "#4fd6be"
+      - '#89b4fa'
       - bold
     inactiveBorderColor:
-      - "#394b70"
+      - '#a6adc8'
     optionsTextColor:
-      - "#89b4fa"
+      - '#89b4fa'
     selectedLineBgColor:
-      - '#414559' # cherry-pick from https://github.com/catppuccin/lazygit/blob/main/themes-mergable/frappe/blue.yml
+      - '#313244'
     cherryPickedCommitBgColor:
-      - "#ff007c"
+      - '#45475a'
     cherryPickedCommitFgColor:
-      - "#65bcff"
+      - '#89b4fa'
     unstagedChangesColor:
-      - "#ff757f"
+      - '#f38ba8'
     defaultFgColor:
-      - "#c8d3f5"
+      - '#cdd6f4'
     searchingActiveBorderColor:
-      - "#ffc777"
+      - '#f9e2af'
 
   authorColors:
-    "*": "#86e1fc"
+  '*': '#b4befe'
 
