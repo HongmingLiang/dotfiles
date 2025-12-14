@@ -29,8 +29,7 @@ $cmd_duration\
 $time\
 [ ](fg:lavender)\
 $line_break\
-$character
-"""
+$character"""
 
 palette = 'catppuccin_mocha'
 

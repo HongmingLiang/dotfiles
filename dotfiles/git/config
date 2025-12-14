@@ -9,7 +9,6 @@
 [init]
 	defaultBranch = main
 [core]
-	editor = vim
 	autocrlf = input
 [color]
     ui = auto
