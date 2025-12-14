@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+DEFAULT_PROXY_PORT=17890
+
+proxy() {
+  local action=${1:-enable} # Default action is to enable proxy
+  shift
+
+  case "$action" in
+    enable | on)
+      local port=${1:-$DEFAULT_PROXY_PORT}
+      # Set all common proxy environment variables (lowercase)
+      export http_proxy="http://127.0.0.1:$port"
+      export https_proxy="http://127.0.0.1:$port"
+      export all_proxy="socks5://127.0.0.1:$port"
+      # Set uppercase versions since some tools (including some versions/environments of Git) might read them
+      export HTTP_PROXY="$http_proxy"
+      export HTTPS_PROXY="$https_proxy"
+      export ALL_PROXY="$all_proxy"
+      echo -e "Proxy enabled (Port: $port)"
+      ;;
+
+    disable | off)
+      # Unset all proxy environment variables
+      unset http_proxy https_proxy all_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY
+      echo "All proxy environment variables cleared"
+      ;;
+
+    list | ls)
+      # List all proxy environment variables
+      echo -e "Listing all current proxy environment variables:"
+      echo -e "  http_proxy  = ${http_proxy:-unset}"
+      echo -e "  https_proxy = ${https_proxy:-unset}"
+      echo -e "  all_proxy   = ${all_proxy:-unset}"
+      echo -e "  HTTP_PROXY  = ${HTTP_PROXY:-unset}"
+      echo -e "  HTTPS_PROXY = ${HTTPS_PROXY:-unset}"
+      echo -e "  ALL_PROXY   = ${ALL_PROXY:-unset}"
+      ;;
+
+    *)
+      echo "Usage: proxy {enable|on|disable|off|list|ls} [port]"
+      echo "Examples:"
+      echo "  proxy         # Enables proxy with default port 17890"
+      echo "  proxy enable  # Same as above"
+      echo "  proxy on      # Same as enable"
+      echo "  proxy enable 12345 # Enables proxy with port 12345"
+      echo "  proxy disable # Disables all proxy settings"
+      echo "  proxy off     # Same as disable"
+      echo "  proxy list    # Lists current proxy settings"
+      echo "  proxy ls      # Same as list"
+      ;;
+  esac
+}
