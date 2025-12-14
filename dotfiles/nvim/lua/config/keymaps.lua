@@ -24,12 +24,6 @@ map("i", "<A-j>", "<Down>", { desc = "Cursor Move Down", noremap = true })
 map("i", "<A-k>", "<Up>", { desc = "Cursor Move Up", noremap = true })
 map("i", "<A-l>", "<Right>", { desc = "Cursor Move Right", noremap = true })
 
--- set alt to move to window
-map("n", "<A-h>", "<C-w>h", { desc = "Go to Left Window", remap = true })
-map("n", "<A-j>", "<C-w>j", { desc = "Go to Lower Window", remap = true })
-map("n", "<A-k>", "<C-w>k", { desc = "Go to Upper Window", remap = true })
-map("n", "<A-l>", "<C-w>l", { desc = "Go to Right Window", remap = true })
-
 -- override line moving
 unmap("n", "<A-j>", { desc = "Move Down" })
 unmap("n", "<A-k>", { desc = "Move Up" })

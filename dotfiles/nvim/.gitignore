@@ -1,3 +1,6 @@
+# ignore lock file to reduce conflicts.
+lazy-lock.json
+
 tt.*
 .tests
 doc/tags
