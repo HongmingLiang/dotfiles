@@ -1,11 +1,7 @@
+#!/usr/bin/env bash
+
 # exit
 alias e='exit'
-
-# cd
-alias cd..='cd ..'
-alias ..='cd ..'
-alias ...='cd ../..'
-alias ....='cd ../../..'
 
 # clear screen
 alias clr='clear'
@@ -23,6 +19,7 @@ alias gs='git status'
 alias ga='git add'
 alias gc='git commit'
 alias gl='git log --oneline'
+# lazygit
 alias lg='lazygit'
 
 # docker
@@ -34,5 +31,6 @@ for i in {1..5}; do
   alias "tree$i"="tree -alC -L $i -I '.git'"
 done
 
-# yazi
-alias yy="yazi"
+# nvidia-smi
+alias gpuinfo="nvidia-smi"
+alias nvismi="nvidia-smi"

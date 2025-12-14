@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+if command -v tmux &> /dev/null; then
+  __tmux_conf_dir="$XDG_CONFIG_HOME/tmux"
+  export PATH="$XDG_DATA_HOME/tmux/plugins/tmuxifier/bin:$PATH"
+  eval "$(tmuxifier init -)"
+  export TMUXIFIER_LAYOUT_PATH="$__tmux_conf_dir/tmuxifier/layouts"
+  # tmux aliases
+  alias tmx="tmux"
+  alias tls="tmux ls"
+  alias tnew="tmux new -s"
+  alias ta="tmux attach"
+  alias tat="tmux attach -t"
+  alias tkill="tmux kill-session -t"
+  alias tconfig="$EDITOR $__tmux_conf_dir/tmux.conf"
+  alias tsource="tmux source $__tmux_conf_dir/tmux.conf"
+  alias tsrc="tmux source $__tmux_conf_dir/tmux.conf"
+  # tmuxifier aliases
+  alias tmuxif='tmuxifier'
+  alias tload='tmuxifier load-session'
+  alias tedit='tmuxifier edit-session'
+  unset __tmux_conf_dir
+fi

@@ -35,180 +35,10 @@ elif [ -f /home/linuxbrew/.linuxbrew/bin/brew ]; then
   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
 
-# --- editor ---
-if command -v nvim > /dev/null 2>&1; then
-  export EDITOR=nvim
-  alias vvim="$(which vim)"
-  alias vim='nvim'
-else
-  export EDITOR=vim
-  export VIMINIT="source $XDG_CONFIG_HOME/vim/vimrc"
-fi
-alias v="$EDITOR"
-
-# --- conda/mamba  ---
-conda() { _lazy_conda_init conda "$@"; }
-mamba() { _lazy_conda_init mamba "$@"; }
-
-_lazy_conda_init() {
-  unset -f conda mamba _lazy_conda_init # unset functions
-
-  # >>> conda initialize >>>
-  # if conda isn't installed in one of these, adjust accordingly. Or create symbolic links.
-  for __conda_prefix in "$HOME/miniforge3" "$HOME/miniconda3" "$HOME/anaconda3"; do
-    if [ -f "$__conda_prefix/bin/conda" ]; then
-      __conda_setup="$("$__conda_prefix/bin/conda" 'shell.bash' 'hook' 2> /dev/null)"
-      if [ $? -eq 0 ]; then
-        eval "$__conda_setup"
-      else
-        [ -f "$__conda_prefix/etc/profile.d/conda.sh" ] && . "$__conda_prefix/etc/profile.d/conda.sh" || export PATH="$__conda_prefix/bin:$PATH"
-      fi
-      unset __conda_setup
-      break
-    fi
-  done
-  unset __conda_prefix
-  # <<< conda initialize <<<
-
-  # >>> mamba initialize >>>
-  for __mamba_prefix in "$HOME/miniforge3" "$HOME/miniconda3"; do # if mamba isn't installed in one of these, adjust accordingly
-    if [ -f "$__mamba_prefix/bin/mamba" ]; then
-      export MAMBA_EXE="$__mamba_prefix/bin/mamba"
-      export MAMBA_ROOT_PREFIX="$__mamba_prefix"
-      __mamba_setup="$("$MAMBA_EXE" shell hook --shell bash --root-prefix "$MAMBA_ROOT_PREFIX" 2> /dev/null)"
-      if [ $? -eq 0 ]; then
-        eval "$__mamba_setup"
-      else
-        alias mamba="$MAMBA_EXE"
-      fi
-      unset __mamba_setup
-      break
-    fi
-  done
-  unset __mamba_prefix
-  # <<< mamba initialize <<<
-
-  if command -v mamba &> /dev/null; then
-    alias cconda="$(which conda)" # keep conda accessible via cconda
-    alias conda='mamba'
-  fi
-  "$@" # now run the requested command
-}
-# aliases for conda/mamba
-alias ma='mamba'
-alias co='conda'
-alias coa='conda activate'
-alias maa='mamba activate'
-alias cod='conda deactivate'
-alias mad='mamba deactivate'
-alias coe='conda env'
-alias mae='mamba env'
-# --- end of conda/mamba ---
-
-# tmux and tmuxifier
-if command -v tmux &> /dev/null; then
-  __tmux_conf_dir="$XDG_CONFIG_HOME/tmux"
-  export PATH="$XDG_DATA_HOME/tmux/plugins/tmuxifier/bin:$PATH"
-  eval "$(tmuxifier init -)"
-  export TMUXIFIER_LAYOUT_PATH="$__tmux_conf_dir/tmuxifier/layouts"
-  # tmux aliases
-  alias tmx="tmux"
-  alias tls="tmux ls"
-  alias tnew="tmux new -s"
-  alias ta="tmux attach"
-  alias tat="tmux attach -t"
-  alias tkill="tmux kill-session -t"
-  alias tconfig="$EDITOR $__tmux_conf_dir/tmux.conf"
-  alias tsource="tmux source $__tmux_conf_dir/tmux.conf"
-  alias tsrc="tmux source $__tmux_conf_dir/tmux.conf"
-  # tmuxifier aliases
-  alias tmuxif='tmuxifier'
-  alias tload='tmuxifier load-session'
-  alias tedit='tmuxifier edit-session'
-  unset __tmux_conf_dir
-fi
-
-# --- texlive  ---
-for tex_year in "2027" "2026" "2025" "2024" "2023"; do
-  if [ -d "/usr/local/texlive/$tex_year/bin/x86_64-linux" ]; then
-    export PATH="/usr/local/texlive/$tex_year/bin/x86_64-linux:$PATH"
-    export MANPATH="/usr/local/texlive/$tex_year/texmf-dist/doc/man:$MANPATH"
-    export INFOPATH="/usr/local/texlive/$tex_year/texmf-dist/doc/info:$INFOPATH"
-    break
-  fi
+# Source all files from $XDG_CONFIG_HOME/bash/bashrc.d directory
+for file in "$XDG_CONFIG_HOME/bash/bashrc.d/"*; do
+  [ -f "$file" ] && source "$file"
 done
-unset tex_year
-# --- end of texlive ---
-
-# colorful output for ls and grep
-if [ -x /usr/bin/dircolors ]; then
-  test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
-  alias ls='ls --color=auto'
-  alias grep='grep --color=auto'
-  alias fgrep='fgrep --color=auto'
-  alias egrep='egrep --color=auto'
-fi
-
-# eza
-if command -v eza > /dev/null 2>&1; then
-  alias ls='eza --group --icons --git --group-directories-first'
-fi
-
-# aliases for ls
-alias ll='ls -alhF'
-alias la='ls -A'
-alias l='ls -hF'
-
-# fzf
-[ command -v fzf ] > /dev/null 2>&1 && eval "$(fzf --bash)" # pick from fzf README: # Set up fzf key bindings and fuzzy completion
-
-# bat: better `cat`
-if command -v bat > /dev/null 2>&1; then
-  export BAT_CONFIG_PATH="$XDG_CONFIG_HOME/bat/config"
-  export BAT_CONFIG_DIR="$XDG_CONFIG_HOME/bat"
-  alias cat='bat --paging=never'
-  alias catp='bat --paging=always'
-  batdiff() { # show git diff with bat
-    git diff --name-only --relative --diff-filter=d -z | xargs -0 bat --diff
-  }
-  help() { # help command with bat formatting
-    "$@" --help 2>&1 | bat --plain --language=help
-  }
-fi
-
-# dust: better `du`
-if command -v dust > /dev/null 2>&1; then
-  for i in {1..5}; do
-    alias "du$i"="dust -d $i -p"
-  done
-  alias du="dust -p"
-else
-  for i in {1..5}; do
-    alias "du$i"="du -hd $i"
-  done
-  alias du="du -h"
-fi
-
-# source bash_aliases if exists
-for f in "${XDG_CONFIG_HOME:-$HOME/.config}/bash/bash_aliases" "$HOME/.bash_aliases"; do
-  [ -f "$f" ] && source "$f" && break
-done
-
-# gping
-if command -v gping > /dev/null 2>&1; then
-  alias pping='$(which ping)' # keep original ping accessible via pping
-  alias ping='gping'
-fi
-
-# shell prompt
-if command -v starship > /dev/null 2>&1; then # starship
-  export STARSHIP_CONFIG="$XDG_CONFIG_HOME/starship/starship.toml"
-  eval "$(starship init bash)"
-elif command -v git > /dev/null 2>&1; then # PS1 with Git branch info
-  PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[01;33m\]$(git branch 2>/dev/null | sed -n "s/^\* \(.*\)/ (\1)/p")\[\033[00m\]\$ '
-else
-  PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
-fi
 
 # zoxide: better `cd`
 if command -v zoxide &> /dev/null; then
@@ -216,3 +46,8 @@ if command -v zoxide &> /dev/null; then
   alias z='__zoxide_z'
   alias zi='__zoxide_zi'
 fi
+# aliases for cd
+alias cd..='cd ..'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
