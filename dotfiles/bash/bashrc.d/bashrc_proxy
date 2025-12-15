@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DEFAULT_PROXY_PORT=17890
+DEFAULT_PROXY_PORT=${DEFAULT_PROXY_PORT:-7890}
 
 proxy() {
   local action=${1:-enable} # Default action is to enable proxy
@@ -8,7 +8,7 @@ proxy() {
 
   case "$action" in
     enable | on)
-      local port=${1:-$DEFAULT_PROXY_PORT}
+      local port=${1:-$DEFAULT_PROXY_PORT} # Default port if not provided
       # Set all common proxy environment variables (lowercase)
       export http_proxy="http://127.0.0.1:$port"
       export https_proxy="http://127.0.0.1:$port"
@@ -39,15 +39,31 @@ proxy() {
 
     *)
       echo "Usage: proxy {enable|on|disable|off|list|ls} [port]"
+      echo
+      echo "This command helps manage proxy settings by setting or unsetting related environment variables. These include both lowercase and uppercase forms (e.g., http_proxy and HTTP_PROXY)."
+      echo
+      echo "Arguments:"
+      echo "  {enable|on} [port]    Enables proxy settings. Optionally specify a port (default: $DEFAULT_PROXY_PORT)."
+      echo "  {disable|off}         Disables all proxy settings by clearing related environment variables."
+      echo "  {list|ls}             Lists all current proxy-related environment variables and their values."
+      echo
       echo "Examples:"
-      echo "  proxy         # Enables proxy with default port 17890"
-      echo "  proxy enable  # Same as above"
-      echo "  proxy on      # Same as enable"
-      echo "  proxy enable 12345 # Enables proxy with port 12345"
-      echo "  proxy disable # Disables all proxy settings"
-      echo "  proxy off     # Same as disable"
-      echo "  proxy list    # Lists current proxy settings"
-      echo "  proxy ls      # Same as list"
+      echo "  proxy                 # Enables proxy with default port $DEFAULT_PROXY_PORT."
+      echo "  proxy enable          # Same as above."
+      echo "  proxy on              # Same as enable."
+      echo "  proxy enable 12345    # Enables proxy with port 12345."
+      echo "  proxy disable         # Disables all proxy settings."
+      echo "  proxy off             # Same as disable."
+      echo "  proxy list            # Lists current proxy settings."
+      echo "  proxy ls              # Same as list."
+      echo
+      echo "Environment Variables Managed:"
+      echo "  - http_proxy: Lowercase HTTP proxy setting."
+      echo "  - https_proxy: Lowercase HTTPS proxy setting."
+      echo "  - all_proxy: Lowercase SOCKS proxy setting."
+      echo "  - HTTP_PROXY: Uppercase HTTP proxy setting (compatibility)."
+      echo "  - HTTPS_PROXY: Uppercase HTTPS proxy setting (compatibility)."
+      echo "  - ALL_PROXY: Uppercase SOCKS proxy setting (compatibility)."
       ;;
   esac
 }
