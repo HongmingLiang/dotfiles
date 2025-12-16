@@ -12,10 +12,11 @@ elseif platform.is_win or platform.is_linux then
 	MOD.SUPER_REV = "ALT|CTRL"
 end
 
-local leader = { key = "Space", mods = MOD.SUPER, timeout_milliseconds = 1500 }
+local leader = { key = "w", mods = MOD.SUPER, timeout_milliseconds = 1500 }
 local keys = {
 	-- useful actions --
 	{ key = "/", mods = "LEADER", action = act.Search({ CaseInSensitiveString = "" }) },
+
 	{
 		key = "u",
 		mods = MOD.SUPER_REV,
@@ -45,7 +46,7 @@ local keys = {
 	{ key = "v", mods = "CTRL|SHIFT", action = act.PasteFrom("Clipboard") },
 	-- tabs --
 	{ key = "t", mods = MOD.SUPER, action = act.SpawnTab("CurrentPaneDomain") },
-	{ key = "w", mods = MOD.SUPER, action = act.CloseCurrentTab({ confirm = false }) },
+	{ key = "e", mods = "LEADER", action = act.CloseCurrentTab({ confirm = false }) },
 	{ key = "[", mods = MOD.SUPER, action = act.ActivateTabRelative(-1) },
 	{ key = "]", mods = MOD.SUPER, action = act.ActivateTabRelative(1) },
 	{ key = "1", mods = MOD.SUPER, action = act.ActivateTab(0) },
@@ -82,7 +83,7 @@ local keys = {
 
 	-- panes: zoom+close pane
 	{ key = "Enter", mods = MOD.SUPER, action = act.TogglePaneZoomState },
-	{ key = "w", mods = MOD.SUPER, action = act.CloseCurrentPane({ confirm = false }) },
+	{ key = "e", mods = "LEADER", action = act.CloseCurrentPane({ confirm = false }) },
 
 	-- panes: navigation
 	{ key = "k", mods = MOD.SUPER_REV, action = act.ActivatePaneDirection("Up") },
