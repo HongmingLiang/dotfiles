@@ -1,0 +1,21 @@
+[Unit]
+Description=DDNS-Go User Service
+
+Documentation=https://github.com/jeessy2/ddns-go
+
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+ExecStart=%h/.local/bin/ddns-go -c "%h/.config/ddns-go/config.yaml" -cacheTimes 60 -f 600 -noweb
+
+Restart=on-failure
+RestartSec=30s
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

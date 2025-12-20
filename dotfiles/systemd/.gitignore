@@ -1,0 +1,6 @@
+**/*.wants/
+**/*.requires/
+**/*.mount/
+**/*.target/
+**/*.scope/
+**/*.slice/
