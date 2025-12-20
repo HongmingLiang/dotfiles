@@ -1,14 +1,38 @@
-[user] # Configure your name and email
-	name = HongmingLiang
+[user]
+  name = HongmingLiang
 	email = hm.liang.dev@outlook.com
-[alias]
-	cm = commit
-	co = checkout
-	br = branch
-	st = status
-[init]
-	defaultBranch = main
+
 [core]
-	autocrlf = input
+  compression = 9
+  whitespace = error
+  preloadIndex = true
+  autocrlf = input
+
+[alias]
+  cm = commit
+  co = checkout
+  br = branch
+  st = status
+
+[init]
+  defaultBranch = main
+
+[status]
+  branch = true
+  showStash = true
+  showUntrackedFiles = all
+
+[push]
+  autoSetupRemote = true
+
+[pull]
+  rebase = true
+
 [color]
-    ui = auto
+  ui = auto
+
+[url "https://github.com/HongmingLiang/"]
+  insteadOf = "hm:"
+
+[url "https://github.com/"]
+  insteadOf = "gh:"
