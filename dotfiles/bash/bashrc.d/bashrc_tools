@@ -41,7 +41,9 @@ alias la='ls -A'
 alias l='ls -hF'
 
 # fzf
-[ command -v fzf ] > /dev/null 2>&1 && eval "$(fzf --bash)" # pick from fzf README: # Set up fzf key bindings and fuzzy completion
+if command -v fzf > /dev/null 2>&1; then
+  eval "$(fzf --bash)" # Set up fzf key bindings and fuzzy completion
+fi
 
 # bat: better `cat`
 if command -v bat > /dev/null 2>&1; then
