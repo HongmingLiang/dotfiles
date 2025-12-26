@@ -13,7 +13,7 @@ if command -v tmux &> /dev/null; then
   alias tkill="tmux kill-session -t"
   alias tconfig="$EDITOR $__tmux_conf_dir/tmux.conf"
   alias tsource="tmux source $__tmux_conf_dir/tmux.conf"
-  alias tsrc="tmux source $__tmux_conf_dir/tmux.conf"
+  alias tso="tmux source $__tmux_conf_dir/tmux.conf"
   # tmuxifier aliases
   alias tmuxif='tmuxifier'
   alias tload='tmuxifier load-session'

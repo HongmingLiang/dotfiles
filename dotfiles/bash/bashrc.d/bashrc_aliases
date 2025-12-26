@@ -3,6 +3,11 @@
 # exit
 alias e='exit'
 
+# source
+alias so='source'
+alias sobash='source ~/.bashrc'
+alias soprofile='source ~/.profile'
+
 # clear screen
 alias clr='clear'
 
@@ -39,3 +44,6 @@ done
 # nvidia-smi
 alias gpuinfo="nvidia-smi"
 alias nvismi="nvidia-smi"
+
+# python
+alias py='python3'
