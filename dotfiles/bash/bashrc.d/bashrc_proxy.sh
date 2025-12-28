@@ -26,7 +26,7 @@ proxy() {
       echo "All proxy environment variables cleared"
       ;;
 
-    list | ls)
+    list | ls | status)
       # List all proxy environment variables
       echo -e "Listing all current proxy environment variables:"
       echo -e "  http_proxy  = ${http_proxy:-unset}"
@@ -45,7 +45,7 @@ proxy() {
       echo "Arguments:"
       echo "  {enable|on} [port]    Enables proxy settings. Optionally specify a port (default: $DEFAULT_PROXY_PORT)."
       echo "  {disable|off}         Disables all proxy settings by clearing related environment variables."
-      echo "  {list|ls}             Lists all current proxy-related environment variables and their values."
+      echo "  {list|ls|status}      Lists all current proxy-related environment variables and their values."
       echo
       echo "Examples:"
       echo "  proxy                 # Enables proxy with default port $DEFAULT_PROXY_PORT."
