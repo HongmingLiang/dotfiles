@@ -78,6 +78,7 @@ if command -v gping > /dev/null 2>&1; then
   alias pping='$(which ping)' # keep original ping accessible via pping
   alias ping='gping'
 fi
+alias ping='ping -c 5'
 
 # yazi shell wrapper for changing directory: https://yazi-rs.github.io/docs/quick-start
 function y() {
