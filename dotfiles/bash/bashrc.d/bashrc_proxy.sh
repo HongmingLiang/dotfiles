@@ -78,3 +78,10 @@ proxy() {
       ;;
   esac
 }
+
+_proxy() {
+  local options="enable on disable off list ls status --help"
+  local current_word="${COMP_WORDS[COMP_CWORD]:-}" # Ensure variable is error-safe
+  COMPREPLY=($(compgen -W "${options}" -- ${current_word}))
+}
+complete -F _proxy proxy
