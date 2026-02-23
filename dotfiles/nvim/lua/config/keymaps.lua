@@ -32,8 +32,8 @@ unmap("i", "<A-k>", { desc = "Move Up" })
 unmap("v", "<A-j>", { desc = "Move Down" })
 unmap("v", "<A-k>", { desc = "Move Up" })
 
-map("v", "<C-j>", ":<C-u>execute \"'<,'>move '>+\" . v:count1<cr>gv=gv", { desc = "Move Down" })
-map("v", "<C-k>", ":<C-u>execute \"'<,'>move '<-\" . (v:count1 + 1)<cr>gv=gv", { desc = "Move Up" })
+map("v", "<C-j>", ":<C-u>execute \"'<,'>move '>+\" . v:count1<cr>gv=gv", { silent = true, desc = "Move Down" })
+map("v", "<C-k>", ":<C-u>execute \"'<,'>move '<-\" . (v:count1 + 1)<cr>gv=gv", { silent = true, desc = "Move Up" })
 
 ---- Control related keys ----
 

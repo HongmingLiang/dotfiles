@@ -43,7 +43,8 @@ return {
   -- stop using nvim-cmp
   {
     "hrsh7th/nvim-cmp",
-    enable = false,
+    cond = false,
+    enabled = false,
     -- Supertab, pick from: https://www.lazyvim.org/configuration/recipes#supertab
     ---@param opts cmp.ConfigSchema
     opts = function(_, opts)
