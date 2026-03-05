@@ -10,6 +10,7 @@ if command -v tmux &> /dev/null; then
   alias tnew="tmux new -s"
   alias ta="tmux attach"
   alias tat="tmux attach -t"
+  alias tsw="tmux switch-client -t"
   alias tkill="tmux kill-session -t"
   alias tconfig="$EDITOR $__tmux_conf_dir/tmux.conf"
   alias tsource="tmux source $__tmux_conf_dir/tmux.conf"
