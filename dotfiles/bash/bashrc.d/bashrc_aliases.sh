@@ -7,6 +7,7 @@ alias e='exit'
 alias so='source'
 alias sobash='source ~/.bashrc'
 alias soprofile='source ~/.profile'
+alias sovenv='source .venv/bin/activate'
 
 # clear screen
 alias clr='clear'
