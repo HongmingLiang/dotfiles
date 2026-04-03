@@ -1,6 +1,29 @@
--- AI related plugins
+-- AI related configs
 
 return {
+  {
+    "zbirenbaum/copilot.lua",
+    dependencies = {
+      "copilotlsp-nvim/copilot-lsp",
+    },
+    cmd = "Copilot",
+    event = "BufReadPost",
+    init = function()
+      vim.g.copilot_nes_debounce = 50
+    end,
+    config = function()
+      require("copilot").setup({
+        nes = {
+          enabled = true,
+          keymap = {
+            accept_and_goto = "<Tab>",
+            accept = false,
+            dismiss = "<Esc>",
+          },
+        },
+      })
+    end,
+  },
   {
     "nickjvandyke/opencode.nvim",
     version = "*", -- Latest stable release
@@ -64,7 +87,7 @@ return {
       end, { desc = "Scroll opencode down" })
     end,
   },
-  { -- stop using avante for now
+  { -- stop using avante
     "yetone/avante.nvim",
     cond = false,
     enabled = false,

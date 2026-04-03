@@ -28,15 +28,6 @@ return {
         ["<A-k>"] = { function(cmp) return cmp.select_prev({ auto_insert = false }) end, "fallback", },
         ["<A-/>"] = { function(cmp) if cmp.is_menu_visible() then return cmp.hide() else return cmp.show() end end, "fallback", },
       }, -- end of keymap
-      signature = {
-        enabled = true,
-        window = {
-          border = "single",
-          winblend = 10,
-          treesitter_highlighting = true,
-          show_documentation = true,
-        },
-      },
     }, -- end of opts
   }, -- end of blink.cmp
 
