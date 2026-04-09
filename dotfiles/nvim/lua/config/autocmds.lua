@@ -1,4 +1,4 @@
--- config/autocmds.lua
+-- lua/config/autocmds.lua
 -- ref: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/autocmds.lua
 
 local augroup = vim.api.nvim_create_augroup("UserConfig", { clear = true })
