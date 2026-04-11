@@ -14,6 +14,14 @@ require("mini.icons").setup({})
 
 require("mini.surround").setup({
   mappings = {
-    add = "",
+    add = "gsa",
+    delete = "gsd",
+    replace = "gsr",
+    find = "gsf",
+    find_left = "gsF",
+    highlight = "gsh",
   },
+})
+require("which-key").add({
+  { mode = { "n", "x", "v" }, "gs", group = "mini.surround" },
 })
