@@ -8,7 +8,7 @@ opt.spelllang = { "en" }
 opt.timeoutlen = vim.g.vscode and 1000 or 300
 opt.errorbells = false
 opt.encoding = "utf-8"
-opt.clipboard:append("unnamedplus")
+-- opt.clipboard:append("unnamedplus")
 opt.path:append("**") -- include all the subdirs
 opt.wildmenu = true
 opt.wildmode = "longest:full,full" -- Command-line completion mode

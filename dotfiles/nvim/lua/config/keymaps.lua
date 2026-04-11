@@ -10,6 +10,13 @@ map({ "n", "x" }, "<leader>qq", "<CMD>qa<CR>", { desc = "Quit all" })
 map({ "n", "x" }, "<leader>qr", "<CMD>restart<CR>", { desc = "Restart" })
 map({ "n", "x" }, "qq", "<CMD>:q<CR>", { desc = "Quit" })
 
+map({ "n", "x" }, "d", '"_d', { desc = "Delete without yanking" })
+map("n", "D", '"_D', { desc = "Delete to EOL without yanking" })
+
+map({ "x" }, "<leader>y", '"+y', { desc = "Yank to system clipboard" })
+map("n", "<leader>Y", '"+Y', { desc = "Yank line to system clipboard" })
+map({ "n", "x" }, "<leader>ps", '"+p', { desc = "Paste from system clipboard" })
+
 -- save file
 map({ "i", "x", "n", "s" }, "<C-s>", "<cmd>w<cr><esc>", { desc = "Save File" })
 map({ "x", "n" }, "<leader>w", "<cmd>w<cr>", { desc = "Write" })
