@@ -5,12 +5,14 @@ vim.g.maplocalleader = "\\"
 
 local map = vim.keymap.set
 
-map({"i"}, "jk", "<ESC>l", { desc = "Escape to normal mode" })
-map({ "n", "x" }, "<leader>qq", "<CMD>:qa<CR>", { desc = "Quit all" })
+map({ "i" }, "jk", "<ESC>l", { desc = "Escape to normal mode" })
+map({ "n", "x" }, "<leader>qq", "<CMD>qa<CR>", { desc = "Quit all" })
+map({ "n", "x" }, "<leader>qr", "<CMD>restart<CR>", { desc = "Restart" })
 map({ "n", "x" }, "qq", "<CMD>:q<CR>", { desc = "Quit" })
 
 -- save file
 map({ "i", "x", "n", "s" }, "<C-s>", "<cmd>w<cr><esc>", { desc = "Save File" })
+map({ "x", "n" }, "<leader>w", "<cmd>w<cr>", { desc = "Write" })
 
 -- Add undo break-points
 map("i", ",", ",<c-g>u")
@@ -42,6 +44,7 @@ map("n", "[b", "<cmd>bprevious<cr>", { desc = "Prev Buffer" })
 map("n", "]b", "<cmd>bnext<cr>", { desc = "Next Buffer" })
 map("n", "<leader>bb", "<cmd>e #<cr>", { desc = "Switch to Other Buffer" })
 map("n", "<leader>`", "<cmd>e #<cr>", { desc = "Switch to Other Buffer" })
+map("n", "<leader>bD", "<cmd>:bd<cr>", { desc = "Delete Buffer and Window" })
 
 -- Move to window using the <ctrl> hjkl keys
 map("n", "<C-h>", "<C-w>h", { desc = "Go to Left Window", remap = true })
@@ -50,8 +53,9 @@ map("n", "<C-k>", "<C-w>k", { desc = "Go to Upper Window", remap = true })
 map("n", "<C-l>", "<C-w>l", { desc = "Go to Right Window", remap = true })
 
 -- split window
-map({"n"}, "<leader>\\", ":vsplit<cr>", { desc = "Split window right" })
-map({"n"}, "<leader>-", ":split<cr>", { desc = "Split window below" })
+map({ "n" }, "<leader>\\", ":vsplit<cr>", { desc = "Split window right" })
+map({ "n" }, "<leader>-", ":split<cr>", { desc = "Split window below" })
+map({ "n" }, "<c-w>d", "<cmd>q<cr>", { desc = "Close window" })
 
 -- Resize window using <ctrl> arrow keys
 map("n", "<C-Up>", "<cmd>resize +2<cr>", { desc = "Increase Window Height" })
@@ -59,16 +63,20 @@ map("n", "<C-Down>", "<cmd>resize -2<cr>", { desc = "Decrease Window Height" })
 map("n", "<C-Left>", "<cmd>vertical resize -2<cr>", { desc = "Decrease Window Width" })
 map("n", "<C-Right>", "<cmd>vertical resize +2<cr>", { desc = "Increase Window Width" })
 
--- map({"n", "s" }, "<leader>c", ":nohlsearch<cr>", { desc = "Clear search highlight" })
+-- Clear search and stop snippet on escape
+map({ "i", "n", "s" }, "<esc>", function()
+  vim.cmd("nohlsearch")
+  return "<esc>"
+end, { expr = true, desc = "Escape and clear search highlight" })
 
 -- keep cursor in the center while scorlling and searching
-map({"n"}, "n", "nzzzv", { desc = "Next search result (centered)" })
-map({"n"}, "N", "Nzzzv", { desc = "Previous search result (centered)" })
-map({"n"}, "<C-d>", "<C-d>zz", { desc = "Half page down (centered)" })
-map({"n"}, "<C-u>", "<C-u>zz", { desc = "Half page down (centered)" })
+map({ "n" }, "n", "nzzzv", { desc = "Next search result (centered)" })
+map({ "n" }, "N", "Nzzzv", { desc = "Previous search result (centered)" })
+-- map({ "n" }, "<C-d>", "<C-d>zz", { desc = "Half page down (centered)" })
+-- map({ "n" }, "<C-u>", "<C-u>zz", { desc = "Half page down (centered)" })
 
-map({"n"}, "<leader>pa", function()
+map({ "n" }, "<leader>pp", function()
   local path = vim.fn.expand("%:p")
   vim.fn.setreg("+", path)
   print("Copy current file path:", path)
-end,{ desc = "Copy current file path" })
+end, { desc = "Copy current file path" })
