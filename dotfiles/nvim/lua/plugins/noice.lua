@@ -35,3 +35,17 @@ require("noice").setup({
     lsp_doc_border = true, -- add a border to hover docs and signature help
   },
 })
+
+local map = vim.keymap.set
+
+map({ "i", "n", "s" }, "<c-u>", function()
+  if not require("noice.lsp").scroll(-8) then
+    return "<c-u>"
+  end
+end, { silent = true, expr = true, desc = "Scroll backward" })
+
+map({ "i", "n", "s" }, "<c-d>", function()
+  if not require("noice.lsp").scroll(8) then
+    return "<c-d>"
+  end
+end, { silent = true, expr = true, desc = "Scroll forward" })
