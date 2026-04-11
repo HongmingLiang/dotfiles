@@ -3,13 +3,14 @@ vim.pack.add({
     src = "https://github.com/nvim-treesitter/nvim-treesitter.git",
     branch = "main",
     build = ":TSUpdate",
-  }
+  },
 })
 
 require("nvim-treesitter").setup({
   auto_install = false,
   highlight = { enable = true },
   indent = { enable = true },
+  fold = { enable = true },
 })
 
 -- install missing plugins
@@ -33,7 +34,9 @@ vim.api.nvim_create_autocmd("VimEnter", {
   end,
 })
 
-vim.api.nvim_create_autocmd('FileType', {
+vim.api.nvim_create_autocmd("FileType", {
   pattern = vim.tbl_keys(require("plugins.lang.languages").languages),
-  callback = function() vim.treesitter.start() end,
+  callback = function()
+    vim.treesitter.start()
+  end,
 })
