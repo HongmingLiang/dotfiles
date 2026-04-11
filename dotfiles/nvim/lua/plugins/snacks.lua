@@ -100,6 +100,11 @@ end, { desc = "Git diff" })
 map({ "n" }, "<leader>gs", function()
   Snacks.picker.git_status()
 end, { desc = "Git status" })
+if vim.fn.executable("lazygit") == 1 then
+  map("n", "<leader>gg", function()
+    Snacks.lazygit()
+  end, { desc = "Lazygit" })
+end
 
 require("which-key").add({ { mode = { "n" }, "<leader>s", group = "search" } })
 map({ "n" }, "<leader>sn", function()
