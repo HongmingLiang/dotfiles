@@ -42,7 +42,6 @@ require("snacks").setup({
 
   dashboard = {
     enable = true,
-    pane_gap = 4,
     preset = {
       keys = {
         { icon = " ", key = "f", desc = "Find File", action = ":lua Snacks.dashboard.pick('files')" },
