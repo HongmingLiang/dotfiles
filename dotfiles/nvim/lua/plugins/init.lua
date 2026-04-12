@@ -13,6 +13,8 @@ require("plugins.vim-tmux-navigator")
 require("plugins.mini")
 require("plugins.rainbow-delimiters")
 require("plugins.indent-blankline")
+require("plugins.trouble")
+require("plugins.grug-far")
 
 require("plugins.lang")
 
