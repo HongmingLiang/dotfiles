@@ -4,6 +4,7 @@ local function plugin_available(module)
   local ok, _ = pcall(require, module)
   return ok
 end
+local has_snacks = plugin_available("snacks.picker")
 
 local config = {
   options = {
@@ -13,24 +14,26 @@ local config = {
         filetype = "snacks_layout_box",
       },
     },
-
-    diagnostics_indicator = function(count, level, diagnostics_dict, context)
-      local s = " "
+    diagnostics = "nvim_lsp",
+    diagnostics_indicator = function(_, _, diagnostics_dict)
+      local s = ""
       for e, n in pairs(diagnostics_dict) do
         local sym = e == "error" and " " or (e == "warning" and " " or " ")
         s = s .. n .. sym
       end
       return s
     end,
-    -- stylua: ignore
-    close_command = function(n) Snacks.bufdelete(n) end,
-    -- stylua: ignore
-    right_mouse_command = function(n) Snacks.bufdelete(n) end,
   },
 }
 
 if plugin_available("catppuccin") then
   config.highlights = require("catppuccin.special.bufferline").get_theme()
+end
+if has_snacks then
+  -- stylua: ignore
+  config.options.close_command = function(n) Snacks.bufdelete(n) end
+  -- stylua: ignore
+  config.options.right_mouse_command = function(n) Snacks.bufdelete(n) end
 end
 
 vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
@@ -55,8 +58,13 @@ map({ "n" }, "<S-h>", "<cmd>BufferLineCyclePrev<cr>", "Prev buff")
 map({ "n" }, "<S-l>", "<cmd>BufferLineCycleNext<cr>", "Next buff")
 map({ "n" }, "<leader>bg", "<cmd>BufferLinePick<cr>", "Pick buff")
 map({ "n" }, "<leader>bp", "<cmd>BufferLineTogglePin<cr>", "Toggle pin")
+
 map("n", "<leader>bd", function()
-  Snacks.bufdelete()
+  if has_snacks then
+    Snacks.bufdelete()
+  else
+    vim.cmd("bdelete")
+  end
 end, "Delete Buffer")
 map("n", "<leader>bo", function()
   Snacks.bufdelete.other()

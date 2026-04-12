@@ -108,7 +108,11 @@ vim.api.nvim_create_user_command("LspToggle", function(opts)
     local now_enabled = not lsp_is_enabled(name)
     lsp_enabled[name] = now_enabled
 
-    vim.notify(string.format("%s %s", name, now_enabled and "enabled" or "disabled"), vim.log.levels.INFO, { title = "LSP" })
+    vim.notify(
+      string.format("%s %s", name, now_enabled and "enabled" or "disabled"),
+      vim.log.levels.INFO,
+      { title = "LSP" }
+    )
 
     if now_enabled then
       vim.notify("Restart Neovim to start the server.", vim.log.levels.INFO, { title = "LSP" })
@@ -143,7 +147,9 @@ vim.api.nvim_create_user_command("LspToggle", function(opts)
   end
 end, {
   nargs = "?",
-  complete = function() return LSP_SERVERS end,
+  complete = function()
+    return LSP_SERVERS
+  end,
 })
 vim.keymap.set("n", "<leader>ct", "<cmd>LspToggle<cr>", { desc = "Toggle All LSP" })
 
@@ -160,12 +166,7 @@ vim.api.nvim_create_user_command("LspStatus", function()
   for _, name in ipairs(LSP_SERVERS) do
     local enabled = lsp_is_enabled(name)
     local running = clients_by_name[name] or {}
-    table.insert(lines, string.format(
-      "%-8s config:%-8s running:%d",
-      name,
-      enabled and "on" or "off",
-      #running
-    ))
+    table.insert(lines, string.format("%-8s config:%-8s running:%d", name, enabled and "on" or "off", #running))
   end
 
   vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO, { title = "LSP Status" })
@@ -178,18 +179,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
     local function map(mode, key, r, desc)
       vim.keymap.set(mode, key, r, { buffer = ev.buf, desc = desc })
     end
-    map("n", "gd", function()
-      Snacks.picker.lsp_definitions()
-    end, "Goto definition")
-    map("n", "gD", function()
-      Snacks.picker.lsp_declarations()
-    end, "Goto declaration")
-    map("n", "gr", function()
-      Snacks.picker.lsp_references()
-    end, "Goto references")
-    map("n", "gi", function()
-      Snacks.picker.lsp_implementations()
-    end, "Goto implementation")
     map("n", "<leader>cr", vim.lsp.buf.rename, "rename")
     map("n", "<leader>ca", vim.lsp.buf.code_action, "Code Action")
 
@@ -210,14 +199,52 @@ vim.api.nvim_create_autocmd("LspAttach", {
     map("n", "[e", diagnostic_goto(false, "ERROR"), "Prev Error")
     map("n", "]w", diagnostic_goto(true, "WARN"), "Next Warning")
     map("n", "[w", diagnostic_goto(false, "WARN"), "Prev Warning")
+
+    map("n", "K", vim.lsp.buf.hover, "hover")
+    map("n", "<leader>cd", vim.diagnostic.open_float, "Line diagnostic")
+
+    local has_snacks, _ = pcall(require, "snacks.picker")
+    map("n", "gd", function()
+      if has_snacks then
+        Snacks.picker.lsp_definitions()
+      else
+        vim.lsp.buf.definition()
+      end
+    end, "Goto definition")
+    map("n", "gD", function()
+      if has_snacks then
+        Snacks.picker.lsp_declarations()
+      else
+        vim.lsp.buf.declaration()
+      end
+    end, "Goto declaration")
+    map("n", "gr", function()
+      if has_snacks then
+        Snacks.picker.lsp_references()
+      else
+        vim.lsp.buf.references()
+      end
+    end, "Goto references")
+    map("n", "gi", function()
+      if has_snacks then
+        Snacks.picker.lsp_implementations()
+      else
+        vim.buf.buf.implementation()
+      end
+    end, "Goto implementation")
+
+    local default_lsp_keys = { "grr", "grn", "gra", "gri", "grt", "grx" }
+    for _, key in ipairs(default_lsp_keys) do
+      pcall(vim.keymap.del, "n", key)
+      pcall(vim.keymap.del, "x", key)
+    end
+
+    if not has_snacks then return end
     map("n", "[[", function()
       Snacks.words.jump(-vim.v.count1)
     end, "Prev reference")
     map("n", "]]", function()
       Snacks.words.jump(vim.v.count1)
     end, "Next reference")
-
-    map("n", "K", vim.lsp.buf.hover, "hover")
-    map("n", "<leader>cd", vim.diagnostic.open_float, "Line diagnostic")
   end,
 })

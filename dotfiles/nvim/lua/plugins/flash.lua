@@ -13,5 +13,5 @@ map({ "n", "x", "o" }, "<C-space>", function()
             ["<c-space>"] = "next",
             ["<BS>"] = "prev"
           }
-        }) 
+        })
 end, { desc = "Treesitter Incremental Selection" })
