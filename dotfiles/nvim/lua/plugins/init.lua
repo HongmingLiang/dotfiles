@@ -11,6 +11,8 @@ require("plugins.gitsigns")
 require("plugins.blink")
 require("plugins.vim-tmux-navigator")
 require("plugins.mini")
+require("plugins.rainbow-delimiters")
+require("plugins.indent-blankline")
 
 require("plugins.lang")
 
