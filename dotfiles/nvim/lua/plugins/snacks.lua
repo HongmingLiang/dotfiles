@@ -4,6 +4,7 @@ require("snacks").setup({
   bigfile = { enable = true },
   explorer = { enable = true },
   indent = { enable = true },
+  words = { enable = true },
 
   picker = {
     -- ref: https://www.lazyvim.org/extras/editor/snacks_picker

@@ -88,7 +88,7 @@ local function pretty_path()
   return shorten_keep_tail(display, max_len)
 end
 
-require("lualine").setup({
+local config = {
   options = {
     theme = "auto",
     globalstatus = true,
@@ -159,4 +159,13 @@ require("lualine").setup({
     lualine_y = {},
     lualine_z = {},
   },
+}
+
+vim.api.nvim_create_autocmd("UIEnter", {
+  once = true,
+  callback = function()
+    vim.schedule(function()
+      require("lualine").setup(config)
+    end)
+  end,
 })

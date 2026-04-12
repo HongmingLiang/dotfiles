@@ -5,7 +5,7 @@ vim.pack.add({
   },
 })
 
-require("blink.cmp").setup({
+local config = {
   completion = {
     menu = { border = "bold" },
     documentation = {
@@ -55,4 +55,11 @@ require("blink.cmp").setup({
       "fallback",
     },
   }, -- end of keymap
+}
+
+vim.api.nvim_create_autocmd({ "InsertEnter", "CmdlineEnter", "LspAttach" }, {
+  once = true,
+  callback = function()
+    require("blink.cmp").setup(config)
+  end,
 })

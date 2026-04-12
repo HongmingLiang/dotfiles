@@ -3,7 +3,7 @@ vim.pack.add({
   "https://github.com/folke/noice.nvim.git",
 })
 
-require("noice").setup({
+local config = {
   lsp = {
     override = {
       ["vim.lsp.util.convert_input_to_markdown_lines"] = true,
@@ -34,18 +34,27 @@ require("noice").setup({
     inc_rename = false, -- enables an input dialog for inc-rename.nvim
     lsp_doc_border = true, -- add a border to hover docs and signature help
   },
+}
+
+vim.api.nvim_create_autocmd("UIEnter", {
+  once = true,
+  callback = function()
+    vim.schedule(function()
+      require("noice").setup(config)
+
+      local map = vim.keymap.set
+
+      map({ "i", "n", "s" }, "<c-u>", function()
+        if not require("noice.lsp").scroll(-8) then
+          return "<c-u>"
+        end
+      end, { silent = true, expr = true, desc = "Scroll backward" })
+
+      map({ "i", "n", "s" }, "<c-d>", function()
+        if not require("noice.lsp").scroll(8) then
+          return "<c-d>"
+        end
+      end, { silent = true, expr = true, desc = "Scroll forward" })
+    end)
+  end,
 })
-
-local map = vim.keymap.set
-
-map({ "i", "n", "s" }, "<c-u>", function()
-  if not require("noice.lsp").scroll(-8) then
-    return "<c-u>"
-  end
-end, { silent = true, expr = true, desc = "Scroll backward" })
-
-map({ "i", "n", "s" }, "<c-d>", function()
-  if not require("noice.lsp").scroll(8) then
-    return "<c-d>"
-  end
-end, { silent = true, expr = true, desc = "Scroll forward" })

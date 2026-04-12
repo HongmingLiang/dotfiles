@@ -7,7 +7,7 @@ end
 
 local config = {
   options = {
-    always_show_bufferline = false,
+    always_show_bufferline = true,
     offsets = {
       {
         filetype = "snacks_layout_box",
@@ -33,7 +33,12 @@ if plugin_available("catppuccin") then
   config.highlights = require("catppuccin.special.bufferline").get_theme()
 end
 
-require("bufferline").setup(config)
+vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
+  once = true,
+  callback = function()
+    require("bufferline").setup(config)
+  end,
+})
 
 -- keymaps to navigate buffers
 local function map(mode, key, r, desc)
