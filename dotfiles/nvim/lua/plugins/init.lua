@@ -17,6 +17,7 @@ require("plugins.trouble")
 require("plugins.grug-far")
 
 require("plugins.lang")
+require("plugins.ai")
 
 local function get_plugin_names(arg_lead)
   local installed = vim.pack.get(nil, { info = false })
