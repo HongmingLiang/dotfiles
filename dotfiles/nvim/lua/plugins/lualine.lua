@@ -57,14 +57,18 @@ local function shorten_keep_tail(path, max_len)
   if #path <= max_len then
     return path
   end
-  local p = vim.fn.pathshorten(path)
-  if #p <= max_len then
-    return p
-  end
   if max_len <= 1 then
     return "…"
   end
-  return "…" .. p:sub(-(max_len - 1))
+  local ellipsis = "…"
+  local remain = max_len - #ellipsis
+  if remain <= 0 then
+    return ellipsis
+  end
+  local head = math.floor(remain / 2)
+  local tail = remain - head
+  -- keep both beginning and end of the path, cut from the middle
+  return path:sub(1, head) .. ellipsis .. path:sub(#path - tail + 1)
 end
 
 local function pretty_path()
