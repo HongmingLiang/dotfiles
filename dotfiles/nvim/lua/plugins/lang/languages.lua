@@ -31,6 +31,12 @@ M.languages = {
     formatter = { "shfmt" },
     -- linter = { "shellcheck" },
   },
+  -- Many shell scripts (like .bashrc) use the "sh" filetype in Neovim
+  -- but we still want them to be formatted and parsed as bash.
+  sh = {
+    treesitter = { "bash" },
+    formatter = { "shfmt" },
+  },
   markdown = {
     treesitter = { "markdown", "markdown_inline" },
     -- formatter = { "prettierd" },
