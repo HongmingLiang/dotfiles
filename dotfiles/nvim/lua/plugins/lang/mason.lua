@@ -1,22 +1,26 @@
 vim.pack.add({
   "https://github.com/mason-org/mason.nvim.git",
-  "https://github.com/mason-org/mason-lspconfig.nvim.git"
+  "https://github.com/mason-org/mason-lspconfig.nvim.git",
 })
 
 local lang = require("plugins.lang.languages")
 
-require("mason").setup({
-  ui = {
-    border = "bold",
-  },
-})
-vim.keymap.set({ "n" }, "<leader>cm", "<cmd>Mason<cr>", { desc = "Mason" })
-vim.keymap.set({ "n" }, "<leader>ci", "<cmd>LangInstallTools<cr>", { desc = "Install tools" })
+vim.defer_fn(function()
+  require("mason").setup({
+    ui = {
+      border = "bold",
+    },
+  })
+  vim.keymap.set({ "n" }, "<leader>cm", "<cmd>Mason<cr>", { desc = "Mason" })
+  vim.keymap.set({ "n" }, "<leader>ci", "<cmd>LangInstallTools<cr>", { desc = "Install tools" })
+end, 200)
 
-require("mason-lspconfig").setup({
-  automatic_enable = true,
-  ensure_installed = lang.get_lsp_servers(),
-})
+vim.defer_fn(function()
+  require("mason-lspconfig").setup({
+    automatic_enable = true,
+    ensure_installed = lang.get_lsp_servers(),
+  })
+end, 200)
 
 vim.api.nvim_create_user_command("LangInstallTools", function()
   local registry = require("mason-registry")
