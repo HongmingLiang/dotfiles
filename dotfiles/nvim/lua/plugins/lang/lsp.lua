@@ -179,7 +179,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
     local function map(mode, key, r, desc)
       vim.keymap.set(mode, key, r, { buffer = ev.buf, desc = desc })
     end
-    map("n", "<leader>cr", vim.lsp.buf.rename, "rename")
+    map("n", "<leader>cn", vim.lsp.buf.rename, "rename")
     map("n", "<leader>ca", vim.lsp.buf.code_action, "Code Action")
 
     local diagnostic_goto = function(next, severity)

@@ -11,6 +11,11 @@ local M = {}
 --   treesitter : list of Tree-sitter parser names
 --   formatter  : list of formatter names (Mason packages)
 --   linter     : list of linter names (Mason packages)
+--   runner     : optional function used to build a shell command
+--                for running the current file. Signature:
+--                  runner(filepath: string) -> command: string
+--                This is consumed by lua/config/run_current.lua,
+--                which sends the command to the floating terminal.
 -- Each category is optional; omit if not needed.
 M.languages = {
   lua = {
@@ -18,24 +23,46 @@ M.languages = {
     treesitter = { "lua" },
     formatter = { "stylua" },
     -- linter = { "selene" },
+
+    -- How to run the current file for this language.
+    runner = function(filepath)
+      return string.format("lua %s", vim.fn.fnameescape(filepath))
+    end,
   },
   python = {
     lsp = { "pyright" },
     treesitter = { "python" },
     formatter = { "ruff" },
     linter = { "ruff" },
+
+    -- Prefer uv when available, otherwise fall back to python3.
+    runner = function(filepath)
+      local escaped = vim.fn.fnameescape(filepath)
+      if vim.fn.executable("uv") == 1 then
+        return string.format("uv run %s", escaped)
+      end
+      return string.format("python3 %s", escaped)
+    end,
   },
   bash = {
     lsp = { "bashls" },
     treesitter = { "bash" },
     formatter = { "shfmt" },
     -- linter = { "shellcheck" },
+
+    runner = function(filepath)
+      return string.format("bash %s", vim.fn.fnameescape(filepath))
+    end,
   },
   -- Many shell scripts (like .bashrc) use the "sh" filetype in Neovim
   -- but we still want them to be formatted and parsed as bash.
   sh = {
     treesitter = { "bash" },
     formatter = { "shfmt" },
+
+    runner = function(filepath)
+      return string.format("bash %s", vim.fn.fnameescape(filepath))
+    end,
   },
   markdown = {
     treesitter = { "markdown", "markdown_inline" },
@@ -100,6 +127,14 @@ function M.get_linters_by_ft()
     end
   end
   return map
+end
+
+--- Get the runner function for a given filetype, if any.
+-- @param ft string
+-- @return function|nil
+function M.get_runner_for_ft(ft)
+  local config = M.languages[ft]
+  return config and config.runner or nil
 end
 
 return M

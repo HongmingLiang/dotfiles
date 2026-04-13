@@ -1,3 +1,5 @@
+require("plugins.lang.run_current")
+
 require("plugins.lang.lsp")
 require("plugins.lang.mason")
 require("plugins.lang.lint")
