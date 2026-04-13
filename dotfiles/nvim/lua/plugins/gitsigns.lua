@@ -1,6 +1,21 @@
 vim.pack.add({ "https://github.com/lewis6991/gitsigns.nvim.git" })
 
-require("gitsigns").setup({
+local config = {
+  signs = {
+    add = { text = "▎" },
+    change = { text = "▎" },
+    delete = { text = "" },
+    topdelete = { text = "" },
+    changedelete = { text = "▎" },
+    untracked = { text = "▎" },
+  },
+  signs_staged = {
+    add = { text = "▎" },
+    change = { text = "▎" },
+    delete = { text = "" },
+    topdelete = { text = "" },
+    changedelete = { text = "▎" },
+  },
   on_attach = function(buffer)
     local gs = require("gitsigns")
 
@@ -32,8 +47,13 @@ require("gitsigns").setup({
 
     map("n", "<leader>ghp", gs.preview_hunk, "Preview Hunk")
     map("n", "<leader>ghi", gs.preview_hunk_inline, "Preview Hunk Inline")
-    map("n", "<leader>gl", function()
-      gs.blame_line({ full = true })
-    end, "Blame line")
+    map("n", "<leader>gb", function() gs.blame_line({ full = true }) end, "Blame line")
+  end,
+}
+
+vim.api.nvim_create_autocmd("BufEnter", {
+  once = true,
+  callback = function()
+    require("gitsigns").setup(config)
   end,
 })

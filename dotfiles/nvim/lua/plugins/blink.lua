@@ -63,18 +63,17 @@ local config = {
 vim.api.nvim_create_autocmd({ "InsertEnter", "CmdlineEnter", "LspAttach" }, {
   once = true,
   callback = function()
+    if not config.sources.providers then config.sources.providers = {} end
     -- check for copilot and add it as a source if available
     local has_copilot, _ = pcall(vim.pack.get, { "blink-copilot" }, { info = false })
     if has_copilot then
       table.insert(config.sources.default, 1, "copilot")
-      config.sources.providers = {
-        copilot = {
+      config.sources.providers.copilot = {
           name = "copilot",
           module = "blink-copilot",
           score_offset = 100,
           async = true,
-        },
-      }
+        }
     end
 
     require("blink.cmp").setup(config)

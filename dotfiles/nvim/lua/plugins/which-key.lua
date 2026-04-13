@@ -21,6 +21,7 @@ wk.add({
       desc = "Buffer Local Keymaps (which-key)",
     },
     { "<leader>g", group = "git" },
+    { "<leader>gl", group = "git log" },
     { "<leader>gh", group = "git hunks" },
     { "<leader>c", group = "code" },
     { "<leader>u", group = "UI" },

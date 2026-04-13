@@ -1,7 +1,7 @@
 vim.pack.add({ "https://github.com/neovim/nvim-lspconfig.git" })
 
 -- Known LSP servers managed by :LspToggle
-local LSP_SERVERS = { "lua_ls", "pyright", "bashls" }
+local LSP_SERVERS = require("plugins.lang.languages").get_lsp_servers()
 
 -- Per-server enable state kept in memory. Missing key = enabled by default.
 local lsp_enabled = {}
@@ -239,12 +239,13 @@ vim.api.nvim_create_autocmd("LspAttach", {
       pcall(vim.keymap.del, "x", key)
     end
 
-    if not has_snacks then return end
-    map("n", "[[", function()
-      Snacks.words.jump(-vim.v.count1)
-    end, "Prev reference")
-    map("n", "]]", function()
-      Snacks.words.jump(vim.v.count1)
-    end, "Next reference")
+    if has_snacks then
+      map("n", "[[", function()
+        Snacks.words.jump(-vim.v.count1)
+      end, "Prev reference")
+      map("n", "]]", function()
+        Snacks.words.jump(vim.v.count1)
+      end, "Next reference")
+    end
   end,
 })

@@ -62,7 +62,7 @@ map("n", "<C-l>", "<C-w>l", { desc = "Go to Right Window", remap = true })
 -- split window
 map({ "n" }, "<leader>\\", ":vsplit<cr>", { desc = "Split window right" })
 map({ "n" }, "<leader>-", ":split<cr>", { desc = "Split window below" })
-map({ "n" }, "<c-w>d", "<cmd>q<cr>", { desc = "Close window" })
+map({ "n" }, "<c-w>d", ":q<cr>", { silent = true, desc = "Close window" })
 
 -- Resize window using <ctrl> arrow keys
 map("n", "<C-Up>", "<cmd>resize +2<cr>", { desc = "Increase Window Height" })
@@ -75,6 +75,10 @@ map({ "i", "n", "s" }, "<esc>", function()
   vim.cmd("nohlsearch")
   return "<esc>"
 end, { expr = true, desc = "Escape and clear search highlight" })
+
+-- toggle comment
+map("v", "<C-_>", "gc", { desc = "Toggle Comment", remap = true })
+map("n", "<C-_>", "gcc", { desc = "Toggle Comment", remap = true })
 
 -- keep cursor in the center while scorlling and searching
 map({ "n" }, "n", "nzzzv", { desc = "Next search result (centered)" })
