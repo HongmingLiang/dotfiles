@@ -1,4 +1,4 @@
-vim.pack.add({ "https://github.com/folke/trouble.nvim.git" })
+-- trouble.nvim
 
 local initialized = false
 local function setup()

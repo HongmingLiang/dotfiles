@@ -1,4 +1,4 @@
-vim.pack.add({"https://github.com/folke/flash.nvim.git"})
+-- flash.nvim
 
 local map = vim.keymap.set
 

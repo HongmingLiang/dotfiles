@@ -1,4 +1,6 @@
-vim.pack.add({ "https://github.com/linux-cultist/venv-selector.nvim.git" })
+-- python related plugins and configs
+
+-- venv-selector.nvim
 
 local initialized = false
 local function setup()

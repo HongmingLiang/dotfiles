@@ -1,7 +1,4 @@
-vim.pack.add({
-  "https://github.com/MunifTanjim/nui.nvim.git",
-  "https://github.com/folke/noice.nvim.git",
-})
+-- noice.nvim (dependency: nui.nvim)
 
 local config = {
   lsp = {

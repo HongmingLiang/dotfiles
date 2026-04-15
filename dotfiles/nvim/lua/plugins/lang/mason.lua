@@ -1,3 +1,5 @@
+-- lua/plugins/lang/mason.lua
+
 vim.pack.add({
   { src = "https://github.com/mason-org/mason.nvim.git", build = ":MasonUpdate" },
   "https://github.com/mason-org/mason-lspconfig.nvim.git",

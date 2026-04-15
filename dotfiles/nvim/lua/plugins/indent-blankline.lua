@@ -1,4 +1,4 @@
-vim.pack.add({ "https://github.com/lukas-reineke/indent-blankline.nvim.git" })
+-- indent-blankline.nvim
 
 local initialized = false
 local state = false

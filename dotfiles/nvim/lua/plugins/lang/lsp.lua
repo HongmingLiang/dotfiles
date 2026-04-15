@@ -1,4 +1,4 @@
-vim.pack.add({ "https://github.com/neovim/nvim-lspconfig.git" })
+-- lua/plugins/lang/lsp.lua
 
 -- Known LSP servers managed by :LspToggle
 local LSP_SERVERS = require("plugins.lang.languages").get_lsp_servers()

@@ -1,4 +1,4 @@
-vim.pack.add({ "https://github.com/nvim-mini/mini.nvim.git" })
+-- mini.nvim
 
 vim.api.nvim_create_autocmd("UIEnter", {
   once = true,

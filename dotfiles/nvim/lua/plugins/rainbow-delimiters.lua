@@ -1,2 +1,2 @@
-vim.pack.add({ "https://github.com/HiPhish/rainbow-delimiters.nvim.git" })
-
+-- rainbow-delimiters.nvim
+-- No connfig yet, placeholder for now.

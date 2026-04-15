@@ -1,4 +1,4 @@
-vim.pack.add({ "https://github.com/folke/snacks.nvim.git" })
+-- snacks.nvim
 
 local config = {
   bigfile = { enable = true },

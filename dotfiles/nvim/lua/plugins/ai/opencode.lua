@@ -1,4 +1,4 @@
-vim.pack.add({ "https://github.com/nickjvandyke/opencode.nvim.git" })
+-- opencode.nvim
 
 local opencode_cmd = "opencode --port"
 

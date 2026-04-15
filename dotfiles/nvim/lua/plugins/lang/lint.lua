@@ -1,4 +1,5 @@
--- lua/plugins/lint.lua
+-- lua/plugins/lang/lint.lua
+
 vim.pack.add({ "https://github.com/mfussenegger/nvim-lint.git" })
 
 local languages = require("plugins.lang.languages")

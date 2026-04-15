@@ -1,5 +1,4 @@
--- lua/plugins/conform.lua
-vim.pack.add({ "https://github.com/stevearc/conform.nvim.git" })
+-- lua/plugins/lang/format.lua
 
 local initialized = false
 local function setup()

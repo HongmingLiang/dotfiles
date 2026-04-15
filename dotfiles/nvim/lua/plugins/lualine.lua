@@ -1,5 +1,4 @@
--- lua/plugins/lualine.lua
-vim.pack.add({ "https://github.com/nvim-lualine/lualine.nvim" })
+-- lualine.nvim
 
 local diagnostic_signs = {
   Error = " ",

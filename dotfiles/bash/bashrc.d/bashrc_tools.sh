@@ -106,5 +106,5 @@ alias yy='yazi'
 # opencode
 if command -v opencode > /dev/null 2>&1; then
   alias oc="opencode --port"
-  alias oc-c="opencode --continue --port"
+  alias oc-c="opencode --port --continue"
 fi

@@ -1,4 +1,4 @@
-vim.pack.add({ "https://github.com/folke/which-key.nvim.git" })
+-- which-key.nvim
 
 vim.keymap.set({ "n" }, "<leader>?", function()
   require("which-key").show({ global = false })

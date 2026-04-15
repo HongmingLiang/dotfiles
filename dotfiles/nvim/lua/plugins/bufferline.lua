@@ -1,4 +1,4 @@
-vim.pack.add({ "https://github.com/akinsho/bufferline.nvim.git" })
+-- bufferline.nvim
 
 local function plugin_available(module)
   local ok, _ = pcall(require, module)

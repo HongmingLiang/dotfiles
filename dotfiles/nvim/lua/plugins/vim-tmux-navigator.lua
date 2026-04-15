@@ -1,1 +1,2 @@
-vim.pack.add({"https://github.com/christoomey/vim-tmux-navigator.git"})
+-- vim-tmux-navigator
+-- No connfig yet, placeholder for now.

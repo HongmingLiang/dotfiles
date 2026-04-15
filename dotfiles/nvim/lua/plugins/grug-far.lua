@@ -1,4 +1,4 @@
-vim.pack.add({ "https://github.com/MagicDuck/grug-far.nvim.git" })
+-- grug-far.nvim
 
 local initialized = false
 local function setup()
