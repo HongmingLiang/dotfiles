@@ -1,7 +1,12 @@
 -- lua/plugins/init.lua
 
+-- #TODO: add specs in the first place since plugins should be added to runtime path immediately.
+
 require("plugins.which-key")
 require("plugins.snacks")
+
+require("plugins.ai")
+
 require("plugins.catppuccin")
 require("plugins.noice")
 require("plugins.flash")
@@ -17,7 +22,6 @@ require("plugins.trouble")
 require("plugins.grug-far")
 
 require("plugins.lang")
-require("plugins.ai")
 
 local function get_plugin_names(arg_lead)
   local installed = vim.pack.get(nil, { info = false })

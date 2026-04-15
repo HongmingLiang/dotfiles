@@ -39,6 +39,7 @@ opt.cursorline = true -- Enable highlighting of the current line
 opt.number = true -- Print line number
 opt.relativenumber = true -- Relative line numbers
 opt.signcolumn = "yes"
+opt.colorcolumn = "80"
 opt.selection = "inclusive"
 
 opt.splitbelow = true -- Put new windows below current

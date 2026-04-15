@@ -125,6 +125,13 @@ local config = {
     },
     lualine_x = {
       {
+        require("opencode").statusline,
+        cond = function()
+          local has_opencode, _ = pcall(require, "opencode")
+          return has_opencode
+        end,
+      },
+      {
         "diff",
         source = function()
           local gs = vim.b.gitsigns_status_dict
