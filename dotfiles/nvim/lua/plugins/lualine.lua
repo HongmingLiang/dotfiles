@@ -129,9 +129,15 @@ local config = {
           local has_opencode, _ = pcall(require, "opencode")
           return has_opencode
         end,
+        color =  { fg = "#b4befe" },
       },
       {
         "diff",
+        symbols = {
+          added = " ",
+          modified = " ",
+          removed = " ",
+        },
         source = function()
           local gs = vim.b.gitsigns_status_dict
           if gs then
@@ -149,6 +155,7 @@ local config = {
         cond = function()
           return vim.fn.winwidth(0) > 110 and package.loaded["noice"] and require("noice").api.status.command.has()
         end,
+        color = function() return { fg = Snacks.util.color("Statement") } end,
       },
     },
     lualine_y = {
