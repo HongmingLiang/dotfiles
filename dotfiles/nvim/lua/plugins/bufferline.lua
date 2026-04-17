@@ -17,8 +17,10 @@ local config = {
     diagnostics = "nvim_lsp",
     diagnostics_indicator = function(_, _, diagnostics_dict)
       local s = ""
+      local diagnostics_icons = require("config.icons").diagnostics
       for e, n in pairs(diagnostics_dict) do
-        local sym = e == "error" and " " or (e == "warning" and " " or " ")
+        local sym = e == "error" and diagnostics_icons.Error
+          or (e == "warning" and diagnostics_icons.Warn or diagnostics_icons.Info)
         s = s .. n .. sym
       end
       return s

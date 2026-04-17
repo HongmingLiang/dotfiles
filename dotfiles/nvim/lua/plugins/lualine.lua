@@ -1,12 +1,5 @@
 -- lualine.nvim
 
-local diagnostic_signs = {
-  Error = " ",
-  Warn = " ",
-  Hint = " ",
-  Info = " ",
-}
-
 local function is_snacks_explorer_ft(ft)
   return ft == "snacks_picker_list" or ft == "snacks_picker_input" or ft == "snacks_picker_preview"
 end
@@ -91,6 +84,9 @@ local function pretty_path()
   return shorten_keep_tail(display, max_len)
 end
 
+local diagnostic_icons = require("config.icons").diagnostics
+local git_icons = require("config.icons").git
+
 local config = {
   options = {
     theme = "auto",
@@ -115,10 +111,10 @@ local config = {
       {
         "diagnostics",
         symbols = {
-          error = diagnostic_signs.Error,
-          warn = diagnostic_signs.Warn,
-          info = diagnostic_signs.Info,
-          hint = diagnostic_signs.Hint,
+          error = diagnostic_icons.Error,
+          warn = diagnostic_icons.Warn,
+          info = diagnostic_icons.Info,
+          hint = diagnostic_icons.Hint,
         },
       },
     },
@@ -129,14 +125,14 @@ local config = {
           local has_opencode, _ = pcall(require, "opencode")
           return has_opencode
         end,
-        color =  { fg = "#b4befe" },
+        color = { fg = "#b4befe" },
       },
       {
         "diff",
         symbols = {
-          added = " ",
-          modified = " ",
-          removed = " ",
+          added = git_icons.added,
+          modified = git_icons.modified,
+          removed = git_icons.removed,
         },
         source = function()
           local gs = vim.b.gitsigns_status_dict
@@ -155,7 +151,9 @@ local config = {
         cond = function()
           return vim.fn.winwidth(0) > 110 and package.loaded["noice"] and require("noice").api.status.command.has()
         end,
-        color = function() return { fg = Snacks.util.color("Statement") } end,
+        color = function()
+          return { fg = Snacks.util.color("Statement") }
+        end,
       },
     },
     lualine_y = {

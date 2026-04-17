@@ -25,24 +25,19 @@ local function lsp_stop_all()
   end
 end
 
-local diagnostic_signs = {
-  Error = " ",
-  Warn = " ",
-  Hint = "",
-  Info = "",
-}
-
 vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
   once = true,
   callback = function()
+    -- diagnostic_icons
+    local diagnostic_icons = require("config.icons").diagnostics
     vim.diagnostic.config({
       virtual_text = { prefix = "●", spacing = 4 },
       signs = {
         text = {
-          [vim.diagnostic.severity.ERROR] = diagnostic_signs.Error,
-          [vim.diagnostic.severity.WARN] = diagnostic_signs.Warn,
-          [vim.diagnostic.severity.INFO] = diagnostic_signs.Info,
-          [vim.diagnostic.severity.HINT] = diagnostic_signs.Hint,
+          [vim.diagnostic.severity.ERROR] = diagnostic_icons.Error,
+          [vim.diagnostic.severity.WARN] = diagnostic_icons.Warn,
+          [vim.diagnostic.severity.INFO] = diagnostic_icons.Info,
+          [vim.diagnostic.severity.HINT] = diagnostic_icons.Hint,
         },
       },
       underline = true,
