@@ -44,3 +44,19 @@ vim.api.nvim_create_autocmd("FileType", {
     vim.treesitter.start()
   end,
 })
+
+vim.api.nvim_create_user_command("TreesitterStatus", function()
+  local installed = require("nvim-treesitter.config").get_installed()
+  table.sort(installed)
+
+  if #installed == 0 then
+    vim.notify("No treesitter parsers installed", vim.log.levels.INFO, { title = "Treesitter" })
+    return
+  end
+
+  vim.notify(
+    string.format("Installed treesitter parsers (%d):\n%s", #installed, table.concat(installed, ", ")),
+    vim.log.levels.INFO,
+    { title = "Treesitter" }
+  )
+end, { desc = "Show installed treesitter parsers" })

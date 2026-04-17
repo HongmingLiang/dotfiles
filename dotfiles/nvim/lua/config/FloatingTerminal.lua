@@ -63,9 +63,9 @@ local function FloatingTerminal()
 
   ensure_terminal_buffer()
 
-  local width = math.floor(vim.o.columns * 0.8)
-  local height = math.floor(vim.o.lines * 0.8)
-  local row = math.floor((vim.o.lines - height) / 2)
+  local width = math.floor(vim.o.columns * 0.95)
+  local height = math.floor(vim.o.lines * 0.95)
+  local row = math.floor((vim.o.lines - height) / 2 - 3)
   local col = math.floor((vim.o.columns - width) / 2)
 
   terminal_state.win = api.nvim_open_win(terminal_state.buf, true, {
