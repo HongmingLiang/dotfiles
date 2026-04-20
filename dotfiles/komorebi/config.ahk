@@ -1,33 +1,72 @@
 ﻿#Requires AutoHotkey v2.0
 #SingleInstance Force
 
-; Physically block Esc
-$Esc:: return
-
 ; Disable the CapsLock key
 SetCapsLockState "AlwaysOff"
 
-; Send esc key when Capslock is pressed as default
-g_DoNotAbortSendEsc := true
-$*Capslock:: {                           ; Capture CapsLock key press
-    global g_DoNotAbortSendEsc           ; use global variable g_DoNotAbortSendEsc
-    g_DoNotAbortSendEsc := true          ; set g_DoNotAbortSendEsc to true
-    Send("{LControl Down}")              ; send Ctrl key down
-    KeyWait("CapsLock")                  ; capture CapsLock key up
-    Send("{LControl Up}")                ; send Ctrl key up
-    if (A_PriorKey == "CapsLock"         ; if the last key is Capslock
-        && g_DoNotAbortSendEsc) {        ; if the g_DoNotAbortSendEsc is true
-        Send("{Esc}")                    ; send Esc key
+CapsLock::
+{
+    KeyWait "CapsLock", "T0.12"
+
+    if (A_TimeSinceThisHotkey < 120) {
+        Send "{Esc}"
+    } else {
+        Send "{LCtrl down}"
+        KeyWait "CapsLock"
+        Send "{LCtrl up}"
     }
-    return
 }
 
 ; LAlt + home row -> arrow keys
-LAlt & h:: Send "{Left}"
-LAlt & j:: Send "{Down}"
-LAlt & k:: Send "{Up}"
-LAlt & l:: Send "{Right}"
+LAlt & h::
+{
+    if GetKeyState("Control") {
+        Send "^+{Left}"
+    } else if GetKeyState("Shift") {
+        Send "+{Left}"
+    } else {
+        Send "{Left}"
+    }
+}
+
+LAlt & j::
+{
+    if GetKeyState("Control") {
+        Send "^+{Down}"
+    } else if GetKeyState("Shift") {
+        Send "+{Down}"
+    } else {
+        Send "{Down}"
+    }
+}
+
+LAlt & k::
+{
+    if GetKeyState("Control") {
+        Send "^+{Up}"
+    } else if GetKeyState("Shift") {
+        Send "+{Up}"
+    } else {
+        Send "{Up}"
+    }
+}
+
+LAlt & l::
+{
+    if GetKeyState("Control") {
+        Send "^+{Right}"
+    } else if GetKeyState("Shift") {
+        Send "+{Right}"
+    } else {
+        Send "{Right}"
+    }
+}
+
 LAlt & =:: Send "{Delete}"
+LAlt & ':: Send "{Text}'"
+LAlt & \:: Send "{Text}\"
+LAlt & ,:: Send "{Text},"
+LAlt & .:: Send "{Text}."
 
 ; RAlt + home row -> special characters
 RAlt & a:: Send "{Text}!"
@@ -38,10 +77,13 @@ RAlt & g:: Send "{Text}%"
 RAlt & z:: Send "{Text}^"
 RAlt & x:: Send "{Text}&"
 RAlt & c:: Send "{Text}*"
+RAlt & =:: Send "{Delete}"
+
+!+;:: Send "{Text}:"
 
 RAlt:: return
 
-; Komorebic control
+; --- Komorebic control ---
 Komorebic(cmd) {
     RunWait(format("komorebic.exe {}", cmd), , "Hide")
 }

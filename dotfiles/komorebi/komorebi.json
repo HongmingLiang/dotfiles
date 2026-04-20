@@ -24,6 +24,21 @@
       "kind": "Title",
       "id": "Clash",
       "matching_strategy": "Contains"
+    },
+    {
+      "kind": "Title",
+      "id": "WeChat",
+      "matching_strategy": "Contains"
+    },
+    {
+      "kind": "Title",
+      "id": "微信",
+      "matching_strategy": "Contains"
+    },
+    {
+      "kind": "Exe",
+      "id": "Weixin.exe",
+      "matching_strategy": "Contains"
     }
   ],
   "monitors": [
