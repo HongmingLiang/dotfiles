@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 DEFAULT_PROXY_PORT=${DEFAULT_PROXY_PORT:-7890}
+PROXY_HOST=${PROXY_HOST:-"127.0.0.1"}
 
 __proxy_help_message() {
   echo "Usage: proxy {enable|on|disable|off|list|ls} [port]"
@@ -40,9 +41,9 @@ proxy() {
     enable | on)
       local port=${1:-$DEFAULT_PROXY_PORT} # Default port if not provided
       # Set all common proxy environment variables (lowercase)
-      export http_proxy="http://127.0.0.1:$port"
-      export https_proxy="http://127.0.0.1:$port"
-      export all_proxy="socks5://127.0.0.1:$port"
+      export http_proxy="http://$PROXY_HOST:$port"
+      export https_proxy="http://$PROXY_HOST:$port"
+      export all_proxy="socks5://$PROXY_HOST:$port"
       # Set uppercase versions since some tools (including some versions/environments of Git) might read them
       export HTTP_PROXY="$http_proxy"
       export HTTPS_PROXY="$https_proxy"
