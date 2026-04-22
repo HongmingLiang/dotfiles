@@ -79,6 +79,8 @@ end, { expr = true, desc = "Escape and clear search highlight" })
 -- toggle comment
 map("v", "<C-_>", "gc", { desc = "Toggle Comment", remap = true })
 map("n", "<C-_>", "gcc", { desc = "Toggle Comment", remap = true })
+map("v", "<C-/>", "gc", { desc = "Toggle Comment", remap = true })
+map("n", "<C-/>", "gcc", { desc = "Toggle Comment", remap = true })
 
 -- keep cursor in the center while scorlling and searching
 map({ "n" }, "n", "nzzzv", { desc = "Next search result (centered)" })

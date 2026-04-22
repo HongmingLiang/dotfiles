@@ -26,7 +26,12 @@ end, 200)
 
 vim.api.nvim_create_user_command("LangInstallTools", function()
   local registry = require("mason-registry")
-  local tools = vim.list_extend(lang.get_tools("formatter"), lang.get_tools("linter"))
+  local mason_name = {
+    ruff_format = "ruff",
+  }
+  local tools = vim.tbl_map(function(name)
+    return mason_name[name] or name
+  end, vim.list_extend(lang.get_tools("formatter"), lang.get_tools("linter")))
   local notify = vim.notify
   local levels = vim.log.levels
 

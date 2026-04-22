@@ -32,7 +32,7 @@ M.languages = {
   python = {
     lsp = { "pyright" },
     treesitter = { "python" },
-    formatter = { "ruff" },
+    formatter = { "ruff_format" },
     linter = { "ruff" },
 
     -- Prefer uv when available, otherwise fall back to python3.
