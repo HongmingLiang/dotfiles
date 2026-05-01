@@ -83,6 +83,20 @@ vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
         root_markers = { ".git" },
       })
     end
+
+    if lsp_is_enabled("clangd") then
+      vim.lsp.config("clangd", {
+        cmd = {
+          "clangd",
+          "--background-index",
+          "--clang-tidy",
+          "--completion-style=detailed",
+          "--header-insertion=iwyu",
+        },
+        filetypes = { "c", "cpp" },
+        root_markers = { "compile_commands.json", ".git" },
+      })
+    end
   end,
 })
 

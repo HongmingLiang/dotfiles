@@ -68,6 +68,19 @@ M.languages = {
     treesitter = { "markdown", "markdown_inline" },
     -- formatter = { "prettierd" },
   },
+  c = {
+    lsp = { "clangd" },
+    treesitter = { "c" },
+    formatter = { "clang_format" },
+  },
+  cpp = {
+    lsp = { "clangd" },
+    treesitter = { "cpp" },
+    formatter = { "clang_format" },
+  },
+  cmake = {
+    treesitter = { "cmake" },
+  },
 }
 
 --- Generic extractor for tool lists from a given category.
