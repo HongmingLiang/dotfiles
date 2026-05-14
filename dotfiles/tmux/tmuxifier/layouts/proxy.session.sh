@@ -4,18 +4,11 @@ session_root "$(pwd)"
 
 # Create session with specified name if it does not already exist. If no
 # argument is given, session name will be based on layout file name.
-if initialize_session "$(basename "$PWD")"; then
+if initialize_session "proxy"; then
 
-  new_window "$EDITOR"
+  new_window "proxy"
+  run_cmd "clash -f ~/.config/clash/config.yaml"
 
-  new_window "agent"
-
-  new_window "cli"
-  [[ -d ".venv" ]] && run_cmd "source .venv/bin/activate"
-
-  select_window "$EDITOR"
-  [[ -d ".venv" ]] && run_cmd "source .venv/bin/activate"
-  run_cmd "$EDITOR"
 fi
 
 # Finalize session creation and switch/attach to it.
