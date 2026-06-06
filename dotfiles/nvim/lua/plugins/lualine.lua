@@ -120,10 +120,9 @@ local config = {
     },
     lualine_x = {
       {
-        require("opencode").statusline,
-        cond = function()
-          local has_opencode, _ = pcall(require, "opencode")
-          return has_opencode
+        function()
+          local ok, opencode = pcall(require, "opencode")
+          return ok and opencode.statusline() or ""
         end,
         color = { fg = "#b4befe" },
       },
@@ -146,10 +145,15 @@ local config = {
       },
       {
         function()
-          return require("noice").api.status.command.get()
+          local ok, noice = pcall(require, "noice")
+          return ok and noice.api.status.command.get() or ""
         end,
         cond = function()
-          return vim.fn.winwidth(0) > 110 and package.loaded["noice"] and require("noice").api.status.command.has()
+          if vim.fn.winwidth(0) <= 110 then
+            return false
+          end
+          local ok, noice = pcall(require, "noice")
+          return ok and noice.api.status.command.has()
         end,
         color = function()
           return { fg = Snacks.util.color("Statement") }

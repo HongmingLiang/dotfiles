@@ -1,53 +1,62 @@
 -- lua/plugins/init.lua
 
 local spec = {
-  "https://github.com/folke/which-key.nvim.git",
-  "https://github.com/folke/snacks.nvim.git",
-  "https://github.com/nvim-mini/mini.nvim.git",
+  { src = "https://github.com/folke/which-key.nvim.git" },
+  { src = "https://github.com/folke/snacks.nvim.git" },
+  { src = "https://github.com/nvim-mini/mini.nvim.git" },
   { src = "https://github.com/catppuccin/nvim.git", name = "catppuccin" },
-  "https://github.com/folke/flash.nvim.git",
-  "https://github.com/folke/noice.nvim.git",
-  "https://github.com/MunifTanjim/nui.nvim.git", -- dependency for noice.nvim
-  "https://github.com/akinsho/bufferline.nvim.git",
-  "https://github.com/nvim-lualine/lualine.nvim",
-  "https://github.com/lewis6991/gitsigns.nvim.git",
+  { src = "https://github.com/folke/flash.nvim.git" },
+  { src = "https://github.com/folke/noice.nvim.git" },
+  { src = "https://github.com/MunifTanjim/nui.nvim.git" }, -- dependency for noice.nvim
+  { src = "https://github.com/akinsho/bufferline.nvim.git" },
+  { src = "https://github.com/nvim-lualine/lualine.nvim" },
+  { src = "https://github.com/lewis6991/gitsigns.nvim.git" },
   {
     src = "https://github.com/saghen/blink.cmp",
     version = vim.version.range("1.*"),
   },
-  "https://github.com/christoomey/vim-tmux-navigator.git",
-  "https://github.com/HiPhish/rainbow-delimiters.nvim.git",
-  "https://github.com/lukas-reineke/indent-blankline.nvim.git",
-  "https://github.com/folke/trouble.nvim.git",
-  "https://github.com/MagicDuck/grug-far.nvim.git",
-
+  { src = "https://github.com/christoomey/vim-tmux-navigator.git" },
+  { src = "https://github.com/HiPhish/rainbow-delimiters.nvim.git" },
+  { src = "https://github.com/lukas-reineke/indent-blankline.nvim.git" },
+  { src = "https://github.com/folke/trouble.nvim.git" },
+  { src = "https://github.com/MagicDuck/grug-far.nvim.git" },
 
   -- lang
-  "https://github.com/neovim/nvim-lspconfig.git",
+  { src = "https://github.com/neovim/nvim-lspconfig.git" },
   {
     src = "https://github.com/mason-org/mason.nvim.git",
     build = ":MasonUpdate",
   },
-  "https://github.com/mason-org/mason-lspconfig.nvim.git",
-  "https://github.com/mfussenegger/nvim-lint.git",
-  "https://github.com/stevearc/conform.nvim.git",
+  { src = "https://github.com/mason-org/mason-lspconfig.nvim.git" },
+  { src = "https://github.com/mfussenegger/nvim-lint.git" },
+  { src = "https://github.com/stevearc/conform.nvim.git" },
   {
     src = "https://github.com/nvim-treesitter/nvim-treesitter.git",
     branch = "main",
     build = ":TSUpdate",
   },
   --- python
-  "https://github.com/linux-cultist/venv-selector.nvim.git",
-
+  { src = "https://github.com/linux-cultist/venv-selector.nvim.git" },
 
   -- AI
   {
     src = "https://github.com/zbirenbaum/copilot.lua.git",
     build = ":Copilot auth",
   },
-  "https://github.com/fang2hou/blink-copilot.git", -- provider for blink.cmp
+  { src = "https://github.com/fang2hou/blink-copilot.git" }, -- provider for blink.cmp
+  { src = "https://github.com/nickjvandyke/opencode.nvim.git" },
+}
+
+local disabled_spec = {
+  -- Use src to disable plugins from spec above.
   "https://github.com/nickjvandyke/opencode.nvim.git",
 }
+
+if #disabled_spec > 0 then
+  spec = vim.tbl_filter(function(plugin)
+    return not vim.tbl_contains(disabled_spec, plugin.src)
+  end, spec)
+end
 
 vim.pack.add(spec)
 
