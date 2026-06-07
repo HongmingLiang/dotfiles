@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOTFILES_SRC="$DOTFILES_DIR/dotfiles"
@@ -39,36 +39,29 @@ echo "=== Dotfiles Installer ==="
 echo "Installing dotfiles..."
 echo "Backup: $BACKUP_DIR"
 
-# exec_cmd: unified command executor that supports dry-run and safe arg passing
-exec_cmd() {
+info() { echo "$@"; }
+
+run() {
   if [ "$DRY_RUN" -eq 1 ]; then
     printf '[DRY]'
     printf ' %q' "$@"
     echo
-  else
-    "$@"
+    return 0
   fi
+  "$@"
 }
 
-append_backup_list() {
-  local line="$1"
-  if [ "$DRY_RUN" -eq 1 ]; then
-    echo "[DRY] append to $BACKUP_DIR/backup-list.txt: $line"
-  else
-    printf '%s\n' "$line" >> "$BACKUP_DIR/backup-list.txt"
-  fi
+backup_log() {
+  [ "$DRY_RUN" -eq 1 ] && {
+    echo "[DRY] log: $1"
+    return
+  }
+  echo "$1" >> "$BACKUP_DIR/backup-list.txt"
 }
 
-exec_cmd mkdir -p "$BACKUP_DIR"         # create backup dir
-exec_cmd mkdir -p "$XDG_BIN_HOME"       # mkdir for local bin directory
-exec_cmd mkdir -p "$XDG_DATA_HOME/bash" # mkdir for bash history file
-
-# initialize backup list (dry-run prints, real run truncates/creates file)
-if [ "$DRY_RUN" -eq 1 ]; then
-  echo "[DRY] create/empty $BACKUP_DIR/backup-list.txt"
-else
-  echo "" > "$BACKUP_DIR/backup-list.txt"
-fi
+run mkdir -p "$BACKUP_DIR"
+run mkdir -p "$XDG_BIN_HOME"
+run mkdir -p "$XDG_DATA_HOME/bash"
 
 # 1) Link files from DOTFILES_HOME into $HOME
 if [ -d "$DOTFILES_HOME" ]; then
@@ -78,52 +71,56 @@ if [ -d "$DOTFILES_HOME" ]; then
     [[ "$filename" == "." || "$filename" == ".." ]] && continue
 
     target="$HOME/$filename"
-    # If target is a symlink, back up its target (dereference) by copying the target content
     if [ -L "$target" ]; then
       real=$(readlink -f "$target" 2> /dev/null || true)
       if [ -n "$real" ] && [ -e "$real" ]; then
-        exec_cmd cp -a "$real" "$BACKUP_DIR/" && echo "Backed up dereferenced target: $real -> $BACKUP_DIR/"
-        append_backup_list "deref: $target -> $real"
+        info "Backed up dereferenced target: $real -> $BACKUP_DIR/"
+        run cp -a "$real" "$BACKUP_DIR/"
+        backup_log "deref: $target -> $real"
       else
-        exec_cmd mv "$target" "$BACKUP_DIR/" && echo "Backed up broken symlink: $target"
-        append_backup_list "link: $target"
+        info "Backed up broken symlink: $target"
+        run mv "$target" "$BACKUP_DIR/"
+        backup_log "link: $target"
       fi
-      exec_cmd rm -f "$target"
+      run rm -f "$target"
     elif [ -e "$target" ]; then
-      exec_cmd mv "$target" "$BACKUP_DIR/" && echo "Backed up: $target"
-      append_backup_list "move: $target"
+      info "Backed up: $target"
+      run mv "$target" "$BACKUP_DIR/"
+      backup_log "move: $target"
     fi
-    exec_cmd ln -sfn "$file" "$target"
-    echo "Linked home: $filename -> $target"
+    run ln -sfn "$file" "$target"
+    info "Linked home: $filename -> $target"
   done
 fi
 
 # 2) Link directories (except 'home') into XDG config directory
-exec_cmd mkdir -p "$XDG_CONFIG_HOME"
+run mkdir -p "$XDG_CONFIG_HOME"
 for dir in "$DOTFILES_SRC"/*; do
   [ -d "$dir" ] || continue
   name=$(basename "$dir")
   [ "$name" == "$(basename "$DOTFILES_HOME")" ] && continue
 
   target="$XDG_CONFIG_HOME/$name"
-  # If target exists and is a symlink, back up its target content (dereference)
   if [ -L "$target" ]; then
     real=$(readlink -f "$target" 2> /dev/null || true)
     if [ -n "$real" ] && [ -e "$real" ]; then
-      exec_cmd cp -a "$real" "$BACKUP_DIR/" && echo "Backed up dereferenced target: $real -> $BACKUP_DIR/"
-      append_backup_list "deref: $target -> $real"
+      info "Backed up dereferenced target: $real -> $BACKUP_DIR/"
+      run cp -a "$real" "$BACKUP_DIR/"
+      backup_log "deref: $target -> $real"
     else
-      exec_cmd mv "$target" "$BACKUP_DIR/" && echo "Backed up broken symlink: $target"
-      append_backup_list "link: $target"
+      info "Backed up broken symlink: $target"
+      run mv "$target" "$BACKUP_DIR/"
+      backup_log "link: $target"
     fi
-    exec_cmd rm -f "$target"
+    run rm -f "$target"
   elif [ -e "$target" ]; then
-    exec_cmd mv "$target" "$BACKUP_DIR/" && echo "Backed up: $target"
-    append_backup_list "move: $target"
+    info "Backed up: $target"
+    run mv "$target" "$BACKUP_DIR/"
+    backup_log "move: $target"
   fi
-  exec_cmd ln -sfn "$dir" "$target"
-  echo "Linked dir: $name -> $target"
+  run ln -sfn "$dir" "$target"
+  info "Linked dir: $name -> $target"
 done
 
-echo "Installation complete!"
-echo "Run: source ~/.bashrc"
+info "Installation complete!"
+info "Run: source ~/.bashrc"

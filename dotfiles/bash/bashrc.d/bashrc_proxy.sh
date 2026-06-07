@@ -4,33 +4,35 @@ DEFAULT_PROXY_PORT=${DEFAULT_PROXY_PORT:-7890}
 PROXY_HOST=${PROXY_HOST:-"127.0.0.1"}
 
 __proxy_help_message() {
-  echo "Usage: proxy {enable|on|disable|off|list|ls} [port]"
-  echo
-  echo "This command helps manage proxy settings by setting or unsetting related environment variables. These include both lowercase and uppercase forms (e.g., http_proxy and HTTP_PROXY)."
-  echo
-  echo "Arguments:"
-  echo "  {--help | -h}           show this message and exit"
-  echo "  {enable | on} [port]    Enables proxy settings. Optionally specify a port (default: $DEFAULT_PROXY_PORT)."
-  echo "  {disable | off}         Disables all proxy settings by clearing related environment variables."
-  echo "  {list | ls | status}    Lists all current proxy-related environment variables and their values."
-  echo
-  echo "Examples:"
-  echo "  proxy                 # Enables proxy with default port $DEFAULT_PROXY_PORT."
-  echo "  proxy enable          # Same as above."
-  echo "  proxy on              # Same as enable."
-  echo "  proxy enable 12345    # Enables proxy with port 12345."
-  echo "  proxy disable         # Disables all proxy settings."
-  echo "  proxy off             # Same as disable."
-  echo "  proxy list            # Lists current proxy settings."
-  echo "  proxy ls              # Same as list."
-  echo
-  echo "Environment Variables Managed:"
-  echo "  - http_proxy: Lowercase HTTP proxy setting."
-  echo "  - https_proxy: Lowercase HTTPS proxy setting."
-  echo "  - all_proxy: Lowercase SOCKS proxy setting."
-  echo "  - HTTP_PROXY: Uppercase HTTP proxy setting."
-  echo "  - HTTPS_PROXY: Uppercase HTTPS proxy setting."
-  echo "  - ALL_PROXY: Uppercase SOCKS proxy setting."
+  cat << EOF
+Usage: proxy {enable|on|disable|off|list|ls} [port]
+
+This command helps manage proxy settings by setting or unsetting related environment variables. These include both lowercase and uppercase forms (e.g., http_proxy and HTTP_PROXY).
+
+Arguments:
+  {--help | -h}           show this message and exit
+  {enable | on} [port]    Enables proxy settings. Optionally specify a port (default: $DEFAULT_PROXY_PORT).
+  {disable | off}         Disables all proxy settings by clearing related environment variables.
+  {list | ls | status}    Lists all current proxy-related environment variables and their values.
+
+Examples:
+  proxy                 # Enables proxy with default port $DEFAULT_PROXY_PORT.
+  proxy enable          # Same as above.
+  proxy on              # Same as enable.
+  proxy enable 12345    # Enables proxy with port 12345.
+  proxy disable         # Disables all proxy settings.
+  proxy off             # Same as disable.
+  proxy list            # Lists current proxy settings.
+  proxy ls              # Same as list.
+
+Environment Variables Managed:
+  - http_proxy: Lowercase HTTP proxy setting.
+  - https_proxy: Lowercase HTTPS proxy setting.
+  - all_proxy: Lowercase SOCKS proxy setting.
+  - HTTP_PROXY: Uppercase HTTP proxy setting.
+  - HTTPS_PROXY: Uppercase HTTPS proxy setting.
+  - ALL_PROXY: Uppercase SOCKS proxy setting.
+EOF
 }
 
 proxy() {
@@ -58,14 +60,15 @@ proxy() {
       ;;
 
     list | ls | status)
-      # List all proxy environment variables
-      echo -e "Listing all current proxy environment variables:"
-      echo -e "  http_proxy  = ${http_proxy:-unset}"
-      echo -e "  https_proxy = ${https_proxy:-unset}"
-      echo -e "  all_proxy   = ${all_proxy:-unset}"
-      echo -e "  HTTP_PROXY  = ${HTTP_PROXY:-unset}"
-      echo -e "  HTTPS_PROXY = ${HTTPS_PROXY:-unset}"
-      echo -e "  ALL_PROXY   = ${ALL_PROXY:-unset}"
+      cat << EOF
+Listing all current proxy environment variables:
+  http_proxy  = ${http_proxy:-unset}
+  https_proxy = ${https_proxy:-unset}
+  all_proxy   = ${all_proxy:-unset}
+  HTTP_PROXY  = ${HTTP_PROXY:-unset}
+  HTTPS_PROXY = ${HTTPS_PROXY:-unset}
+  ALL_PROXY   = ${ALL_PROXY:-unset}
+EOF
       ;;
     --help | -h)
       # print help message
