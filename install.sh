@@ -122,5 +122,7 @@ for dir in "$DOTFILES_SRC"/*; do
   info "Linked dir: $name -> $target"
 done
 
-info "Installation complete!"
+run "$DOTFILES_HOME/.pi/apply-pi-settings.sh"
+
+info "=== Installation Complete! ==="
 info "Run: source ~/.bashrc"

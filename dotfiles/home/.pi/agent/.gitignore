@@ -1,0 +1,11 @@
+*
+
+!.gitignore
+!settings.template.json
+
+!extensions/
+!extensions/**
+!themes/
+!themes/**
+!vibes/
+!vibes/**

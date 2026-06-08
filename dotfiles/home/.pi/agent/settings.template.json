@@ -1,0 +1,38 @@
+{
+  "theme": "catppuccin-mocha",
+  "showHardwareCursor": true,
+  "quietStartup": false,
+  "hideThinkingBlock": false,
+  "enableInstallTelemetry": false,
+  "treeFilterMode": "no-tools",
+  "enableSkillCommands": true,
+  "steeringMode": "all",
+  "followUpMode": "all",
+  "doubleEscapeAction": "tree",
+  "autocompleteMaxVisible": 10,
+  "editorPaddingX": 0,
+  "compaction": {
+    "enabled": true
+  },
+  "terminal": {
+    "showTerminalProgress": true
+  },
+  "packages": [
+    "npm:pi-powerline-footer"
+  ],
+  "powerline": {
+    "preset": "default",
+    "mouseScroll": true,
+    "fixedEditor": true,
+    "path": {
+      "mode": "abbreviated"
+    }
+  },
+  "workingVibe": "star_trek",
+  "workingVibeMode": "file",
+  "workingVibeRefreshInterval": 2,
+  "powerlineShortcuts": {
+    "jumpPreviousUserMessage": "alt+u",
+    "jumpNextUserMessage": "alt+n"
+  }
+}
