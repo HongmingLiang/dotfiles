@@ -44,17 +44,17 @@ config = {
 if platform.is_win then
     -- https://wezterm.org/config/lua/config/win32_system_backdrop.html
     -- config.win32_system_backdrop = "Acrylic"
-    config.window_background_opacity = 0.9
-    config.text_background_opacity = 0.9
+    config.window_background_opacity = 0.95
+    config.text_background_opacity = 0.95
 elseif platform.is_mac then
     -- https://wezterm.org/config/lua/config/macos_window_background_blur.html
     config.macos_window_background_blur = 20
     config.window_background_opacity = 0.95
-    config.text_background_opacity = 0.9
+    config.text_background_opacity = 0.95
 elseif platform.is_linux then
     -- https://wezterm.org/config/lua/config/kde_window_background_blur.html
-    config.window_background_opacity = 0.9
-    config.text_background_opacity = 0.9
+    config.window_background_opacity = 0.95
+    config.text_background_opacity = 0.95
     config.kde_window_background_blur = true
 end
 

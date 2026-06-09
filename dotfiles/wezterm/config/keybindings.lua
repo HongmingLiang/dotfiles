@@ -14,7 +14,9 @@ end
 
 local leader = { key = "w", mods = MOD.SUPER, timeout_milliseconds = 1500 }
 local keys = {
+	-- disable alt + enter
 	{ key = "Enter", mods = "ALT", action = act.DisableDefaultAssignment },
+	{ key = "u", mods = "CTRL|SHIFT", action = act.DisableDefaultAssignment },
 
 	-- useful actions --
 	{ key = "/", mods = "LEADER", action = act.Search({ CaseInSensitiveString = "" }) },
@@ -84,7 +86,7 @@ local keys = {
 	},
 
 	-- panes: zoom+close pane
-	{ key = "Enter", mods = MOD.SUPER_REV, action = act.TogglePaneZoomState },
+	-- { key = "Enter", mods = MOD.SUPER_REV, action = act.TogglePaneZoomState },
 	{ key = "e", mods = "LEADER", action = act.CloseCurrentPane({ confirm = false }) },
 
 	-- panes: navigation
@@ -99,8 +101,8 @@ local keys = {
 	},
 
 	-- panes: scroll pane
-	{ key = "u", mods = MOD.SUPER, action = act.ScrollByLine(-5) },
-	{ key = "d", mods = MOD.SUPER, action = act.ScrollByLine(5) },
+	-- { key = "u", mods = MOD.SUPER, action = act.ScrollByLine(-5) },
+	-- { key = "d", mods = MOD.SUPER, action = act.ScrollByLine(5) },
 	-- { key = "PageUp", mods = "NONE", action = act.ScrollByPage(-0.75) },
 	-- { key = "PageDown", mods = "NONE", action = act.ScrollByPage(0.75) },
 
