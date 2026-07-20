@@ -1,7 +1,8 @@
 {
   "theme": "catppuccin-mocha",
   "showHardwareCursor": true,
-  "quietStartup": false,
+  "quietStartup": true,
+  "showCacheMissNotices": true,
   "hideThinkingBlock": false,
   "enableInstallTelemetry": false,
   "treeFilterMode": "no-tools",
