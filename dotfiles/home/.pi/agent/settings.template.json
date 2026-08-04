@@ -23,17 +23,13 @@
   ],
   "powerline": {
     "preset": "default",
-    "mouseScroll": true,
-    "fixedEditor": true,
     "path": {
       "mode": "abbreviated"
-    }
+    },
+    "placement": "below"
   },
   "workingVibe": "star_trek",
   "workingVibeMode": "file",
-  "workingVibeRefreshInterval": 2,
-  "powerlineShortcuts": {
-    "jumpPreviousUserMessage": "alt+u",
-    "jumpNextUserMessage": "alt+n"
+  "workingVibeRefreshInterval": 2
   }
 }
