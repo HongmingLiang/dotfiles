@@ -5,6 +5,8 @@
  * renders every agent tool (built-ins, MCP adapters, subagents, and extension
  * tools) through ToolExecutionComponent. Wrapping that component gives every
  * tool the same shell without replacing or re-registering anybody else's tool.
+ * Bash call rows additionally use the standalone tokenizer in
+ * bash-highlighter.ts.
  *
  * The wrapper deliberately removes only SGR background-color sequences from the
  * rendered lines. Foreground colors, syntax highlighting, hyperlinks, and
@@ -17,7 +19,8 @@ import {
 	type ExtensionAPI,
 	type Theme,
 } from "@earendil-works/pi-coding-agent";
-import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { truncateToWidth, Text, visibleWidth } from "@earendil-works/pi-tui";
+import { formatBashCallHighlighted } from "./bash-highlighter.ts";
 
 const TOOLBOX_PATCH = Symbol.for("pi.toolbox.render-patch");
 const MAX_REMEMBERED_STATUSES = 4096;
@@ -25,21 +28,26 @@ const MAX_REMEMBERED_STATUSES = 4096;
 type ToolStatus = "running" | "success" | "error";
 
 type ToolExecutionLike = {
+	toolName?: string;
 	toolCallId?: string;
 	isPartial?: boolean;
 	result?: { isError?: boolean };
 };
 
 type Render = (this: ToolExecutionLike, width: number) => string[];
+type CallRenderer = (args: any, theme: Theme, context: any) => unknown;
+type GetCallRenderer = (this: ToolExecutionLike) => CallRenderer | undefined;
 
 type ToolboxPatch = {
 	originalRender: Render;
+	originalGetCallRenderer?: GetCallRenderer;
 	theme?: Theme;
 	statuses: Map<string, ToolStatus>;
 };
 
 type PatchedPrototype = {
 	render: Render;
+	getCallRenderer?: GetCallRenderer;
 };
 
 /**
@@ -118,7 +126,7 @@ function frameToolLines(
 
 	const innerWidth = width - 2;
 	const borderColor =
-		status === "running" ? "borderMuted" : status === "success" ? "success" : "error";
+		status === "running" ? "dim" : status === "success" ? "success" : "error";
 	const border = (text: string) =>
 		theme?.fg(borderColor, text) ?? fallbackBorderColor(status, text);
 	const top = border(`╭${"─".repeat(innerWidth)}╮`);
@@ -141,12 +149,40 @@ function installPatch(): ToolboxPatch {
 	const existing = Reflect.get(prototype, TOOLBOX_PATCH) as ToolboxPatch | undefined;
 	if (existing) return existing;
 
+	const originalGetCallRenderer = prototype.getCallRenderer;
 	const patch: ToolboxPatch = {
 		originalRender: prototype.render,
+		originalGetCallRenderer,
 		statuses: new Map(),
 	};
 
 	Reflect.set(prototype, TOOLBOX_PATCH, patch);
+
+	// Keep Pi's normal Bash renderer alive for its elapsed-time state, but
+	// replace only the displayed call component with the standalone tokenizer.
+	if (originalGetCallRenderer) {
+		prototype.getCallRenderer = function toolboxGetCallRenderer(this: ToolExecutionLike): CallRenderer | undefined {
+			const originalRenderer = patch.originalGetCallRenderer?.call(this);
+			if (this.toolName !== "bash") return originalRenderer;
+
+			return (args, theme, context) => {
+				try {
+					originalRenderer?.(args, theme, context);
+				} catch {
+					// A third-party Bash renderer must not prevent the highlighted
+					// fallback from being displayed.
+				}
+
+				const previous = context?.lastComponent as { setText?: (text: string) => void } | undefined;
+				const text = previous && typeof previous.setText === "function"
+					? (previous as Text)
+					: new Text("", 0, 0);
+				text.setText(formatBashCallHighlighted(args, theme));
+				return text;
+			};
+		};
+	}
+
 	prototype.render = function toolboxRender(this: ToolExecutionLike, width: number): string[] {
 		// Keep the spacer owned by ToolExecutionComponent outside the frame. The
 		// remaining lines are the actual tool call/result content.
@@ -181,6 +217,9 @@ function uninstallPatch(patch: ToolboxPatch): void {
 	if (Reflect.get(prototype, TOOLBOX_PATCH) !== patch) return;
 
 	prototype.render = patch.originalRender;
+	if (patch.originalGetCallRenderer) {
+		prototype.getCallRenderer = patch.originalGetCallRenderer;
+	}
 	Reflect.deleteProperty(prototype, TOOLBOX_PATCH);
 }
 
