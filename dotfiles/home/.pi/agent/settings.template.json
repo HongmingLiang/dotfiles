@@ -28,8 +28,6 @@
     },
     "placement": "below"
   },
-  "workingVibe": "star_trek",
-  "workingVibeMode": "file",
-  "workingVibeRefreshInterval": 2
-  }
+  "fileVibesEnabled": true,
+  "fileVibesRefreshInterval": 5
 }
