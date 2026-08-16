@@ -24,18 +24,22 @@ chmod +x install.sh
 
 # Perform the install (will backup and then create symlinks)
 ./install.sh
+
+# Install without creating backups
+./install.sh --no-backup
 ```
 
 ## Installer behavior and options
 
 - Script: `install.sh`
-- Options: `-n|--dry-run` to show actions without changing files; `-h|--help` for usage
-- Backup: existing files (or dereferenced symlink targets) are moved/copied to `~/.dotfiles_backup/YYYYMMDD_HHMMSS/`
+- Options: `-n|--dry-run` to show actions without changing files; `--no-backup` to replace existing targets without backing them up; `-h|--help` for usage
+- Backup: existing files (or dereferenced symlink targets) are moved/copied to `~/.dotfiles_backup/YYYYMMDD_HHMMSS/` unless `--no-backup` is used
 - A `backup-list.txt` is created in the backup directory summarizing moved items
 - Linking rules:
 	- Files under `dotfiles/home/` are linked into your `$HOME` as `~/FILENAME`
 	- Each directory under `dotfiles/` (except `home`) is linked into `$XDG_CONFIG_HOME/<dirname>`
 	- If a target already exists it will be backed up (or its dereferenced target copied) before replacing
+	- With `--no-backup`, existing targets are removed directly before linking
 
 After installation you may want to `source ~/.bashrc` or restart your shell.
 
@@ -47,13 +51,11 @@ After installation you may want to `source ~/.bashrc` or restart your shell.
 
 ## Safety notes
 
-- The installer attempts to be safe: it backs up existing files and supports a dry-run mode.
+- The installer attempts to be safe: it backs up existing files by default and supports a dry-run mode.
+- `--no-backup` is destructive for existing targets; use it only when you are sure you do not need the previous files.
 - Review the dry-run output before running the real install if you have important local changes.
 
 ## Troubleshooting
 
 - If the script reports `dotfiles directory not found`, ensure you run it from the repository root or provide the correct path.
 - If you need to restore from backup, inspect `~/.dotfiles_backup/YYYYMMDD_HHMMSS/` and move files back as needed.
-
----
-Updated to match `install.sh` behavior (links, backups, dry-run). 

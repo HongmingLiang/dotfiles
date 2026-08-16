@@ -16,14 +16,19 @@ BACKUP_DIR="$HOME/.dotfiles_backup/$(date +%Y%m%d_%H%M%S)"
 
 # parse args
 DRY_RUN=0
+NO_BACKUP=0
 while [ $# -gt 0 ]; do
   case "$1" in
     -n | --dry-run)
       DRY_RUN=1
       shift
       ;;
+    --no-backup)
+      NO_BACKUP=1
+      shift
+      ;;
     -h | --help)
-      echo "Usage: $0 [--dry-run]"
+      echo "Usage: $0 [--dry-run] [--no-backup]"
       exit 0
       ;;
     *)
@@ -37,7 +42,11 @@ echo "=== Dotfiles Installer ==="
 [ ! -d "$DOTFILES_SRC" ] && echo "Error: dotfiles directory not found: $DOTFILES_SRC" && exit 1
 
 echo "Installing dotfiles..."
-echo "Backup: $BACKUP_DIR"
+if [ "$NO_BACKUP" -eq 1 ]; then
+  echo "Backup: disabled"
+else
+  echo "Backup: $BACKUP_DIR"
+fi
 
 info() { echo "$@"; }
 
@@ -52,6 +61,7 @@ run() {
 }
 
 backup_log() {
+  [ "$NO_BACKUP" -eq 1 ] && return
   [ "$DRY_RUN" -eq 1 ] && {
     echo "[DRY] log: $1"
     return
@@ -59,7 +69,9 @@ backup_log() {
   echo "$1" >> "$BACKUP_DIR/backup-list.txt"
 }
 
-run mkdir -p "$BACKUP_DIR"
+if [ "$NO_BACKUP" -eq 0 ]; then
+  run mkdir -p "$BACKUP_DIR"
+fi
 run mkdir -p "$XDG_BIN_HOME"
 run mkdir -p "$XDG_DATA_HOME/bash"
 
@@ -73,7 +85,9 @@ if [ -d "$DOTFILES_HOME" ]; then
     target="$HOME/$filename"
     if [ -L "$target" ]; then
       real=$(readlink -f "$target" 2> /dev/null || true)
-      if [ -n "$real" ] && [ -e "$real" ]; then
+      if [ "$NO_BACKUP" -eq 1 ]; then
+        info "Removing existing symlink without backup: $target"
+      elif [ -n "$real" ] && [ -e "$real" ]; then
         info "Backed up dereferenced target: $real -> $BACKUP_DIR/"
         run cp -a "$real" "$BACKUP_DIR/"
         backup_log "deref: $target -> $real"
@@ -84,9 +98,14 @@ if [ -d "$DOTFILES_HOME" ]; then
       fi
       run rm -f "$target"
     elif [ -e "$target" ]; then
-      info "Backed up: $target"
-      run mv "$target" "$BACKUP_DIR/"
-      backup_log "move: $target"
+      if [ "$NO_BACKUP" -eq 1 ]; then
+        info "Removing existing target without backup: $target"
+        run rm -rf "$target"
+      else
+        info "Backed up: $target"
+        run mv "$target" "$BACKUP_DIR/"
+        backup_log "move: $target"
+      fi
     fi
     run ln -sfn "$file" "$target"
     info "Linked home: $filename -> $target"
@@ -103,7 +122,9 @@ for dir in "$DOTFILES_SRC"/*; do
   target="$XDG_CONFIG_HOME/$name"
   if [ -L "$target" ]; then
     real=$(readlink -f "$target" 2> /dev/null || true)
-    if [ -n "$real" ] && [ -e "$real" ]; then
+    if [ "$NO_BACKUP" -eq 1 ]; then
+      info "Removing existing symlink without backup: $target"
+    elif [ -n "$real" ] && [ -e "$real" ]; then
       info "Backed up dereferenced target: $real -> $BACKUP_DIR/"
       run cp -a "$real" "$BACKUP_DIR/"
       backup_log "deref: $target -> $real"
@@ -114,9 +135,14 @@ for dir in "$DOTFILES_SRC"/*; do
     fi
     run rm -f "$target"
   elif [ -e "$target" ]; then
-    info "Backed up: $target"
-    run mv "$target" "$BACKUP_DIR/"
-    backup_log "move: $target"
+    if [ "$NO_BACKUP" -eq 1 ]; then
+      info "Removing existing target without backup: $target"
+      run rm -rf "$target"
+    else
+      info "Backed up: $target"
+      run mv "$target" "$BACKUP_DIR/"
+      backup_log "move: $target"
+    fi
   fi
   run ln -sfn "$dir" "$target"
   info "Linked dir: $name -> $target"
