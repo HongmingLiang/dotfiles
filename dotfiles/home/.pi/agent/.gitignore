@@ -2,6 +2,7 @@
 
 !.gitignore
 !settings.template.json
+!keybindings.json
 
 !extensions/
 !extensions/**

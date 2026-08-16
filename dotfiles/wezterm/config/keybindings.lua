@@ -17,6 +17,11 @@ local keys = {
 	-- disable alt + enter
 	{ key = "Enter", mods = "ALT", action = act.DisableDefaultAssignment },
 	{ key = "u", mods = "CTRL|SHIFT", action = act.DisableDefaultAssignment },
+	{ key = "f", mods = "CTRL|SHIFT", action = act.DisableDefaultAssignment },
+	{ key = "l", mods = "CTRL|SHIFT", action = act.DisableDefaultAssignment },
+	{ key = "n", mods = "CTRL|SHIFT", action = act.DisableDefaultAssignment },
+	{ key = "UpArrow", mods = "CTRL|SHIFT", action = act.DisableDefaultAssignment },
+	{ key = "DownArrow", mods = "CTRL|SHIFT", action = act.DisableDefaultAssignment },
 
 	-- useful actions --
 	{ key = "/", mods = "LEADER", action = act.Search({ CaseInSensitiveString = "" }) },

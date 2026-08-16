@@ -20,5 +20,10 @@
     "showTerminalProgress": true
   },
   "fileVibesEnabled": true,
-  "fileVibesRefreshInterval": 5
+  "fileVibesRefreshInterval": 5,
+  "packages": [
+    "npm:pi-web-access",
+    "npm:pi-mcp-adapter",
+    "npm:@narumitw/pi-btw"
+  ]
 }

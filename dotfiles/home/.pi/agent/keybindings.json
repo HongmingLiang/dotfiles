@@ -1,0 +1,4 @@
+{
+  "tui.altScreen.previousPrompt": ["ctrl+shift+up", "alt+u"],
+  "tui.altScreen.nextPrompt": ["ctrl+shift+down", "alt+d"]
+}
