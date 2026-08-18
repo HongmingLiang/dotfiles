@@ -43,7 +43,16 @@ alias l='ls -hF'
 # fzf
 if command -v fzf > /dev/null 2>&1; then
   eval "$(fzf --bash)" # Set up fzf key bindings and fuzzy completion
+  # theme: catppuccin mocha
+  export FZF_DEFAULT_OPTS=" \
+    --color=spinner:#F5E0DC,hl:#F38BA8 \
+    --color=fg:#CDD6F4,header:#F38BA8,info:#CBA6F7,pointer:#F5E0DC \
+    --color=marker:#B4BEFE,fg+:#CDD6F4,prompt:#CBA6F7,hl+:#F38BA8 \
+    --color=selected-bg:#45475A \
+    --color=border:#6C7086,label:#CDD6F4"
+
   command -v tmux &> /dev/null && alias ftsw='tmux switch-client -t $(tmux ls -F "#{session_name}" | fzf)'
+
   __falias_widget() { # interactively search alias and place it on command line
     local cmd
     cmd=$(alias | sed "s/^alias //" | fzf --prompt="Alias> " | awk -F'=' '{print $1}')
