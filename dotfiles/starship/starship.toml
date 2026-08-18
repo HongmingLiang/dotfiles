@@ -17,7 +17,7 @@ $golang\
 $nodejs\
 $fill\
 $cmd_duration\
-$time\
+${custom.time}\
 $line_break\
 $character"""
 
@@ -27,18 +27,21 @@ palette = 'catppuccin_mocha'
 symbol = " "
 
 [custom.username_root]
+description = "Show root username when not inside tmux (custom component)"
 command = 'printf "%s" "$USER"'
 when = '[ -z "$TMUX" ] && [ "$USER" = "root" ]'
 style = "fg:red"
 format = '[$output]($style) '
 
 [custom.username]
+description = "Show username when not inside tmux (custom component)"
 command = 'printf "%s" "$USER"'
 when = '[ -z "$TMUX" ] && [ "$USER" != "root" ]'
 style = "fg:mauve"
 format = '[$output]($style) '
 
 [custom.hostname]
+description = "Show hostname over SSH when not inside tmux (custom component)"
 command = 'printf "󰒋 %s" "$(hostname -s)"'
 when = '[ -z "$TMUX" ] && [ -n "$SSH_CONNECTION$SSH_CLIENT$SSH_TTY" ]'
 style = "fg:mauve"
@@ -124,11 +127,12 @@ disabled = false
 show_notifications = true
 min_time_to_notify = 45000
 
-[time]
-disabled = false
-time_format = "%R"
+[custom.time]
+description = "Show current time when not inside tmux (custom component)"
+command = 'date +" %R"'
+when = '[ -z "$TMUX" ]'
 style = "fg:lavender"
-format = '[ $time]($style) '
+format = '[$output]($style) '
 
 [character]
 disabled = false
