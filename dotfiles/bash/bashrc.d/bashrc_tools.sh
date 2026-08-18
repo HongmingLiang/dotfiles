@@ -13,7 +13,11 @@ alias v="$EDITOR"
 
 # shell prompt
 if command -v starship > /dev/null 2>&1; then # starship
-  export STARSHIP_CONFIG="$XDG_CONFIG_HOME/starship/starship.toml"
+  if [ -n "$TMUX" ]; then
+    export STARSHIP_CONFIG="$XDG_CONFIG_HOME/starship/starship-tmux.toml"
+  else
+    export STARSHIP_CONFIG="$XDG_CONFIG_HOME/starship/starship.toml"
+  fi
   eval "$(starship init bash)"
 elif command -v git > /dev/null 2>&1; then # PS1 with Git branch info
   PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[01;33m\]$(git branch 2>/dev/null | sed -n "s/^\* \(.*\)/ (\1)/p")\[\033[00m\]\$ '

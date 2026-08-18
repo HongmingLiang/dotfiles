@@ -1,8 +1,6 @@
 "$schema" = 'https://starship.rs/config-schema.json'
 
 format = """
-$username\
-$hostname\
 $directory\
 $git_branch\
 $git_status  \
@@ -16,7 +14,6 @@ $golang\
 $nodejs\
 $fill\
 $cmd_duration\
-$time\
 $line_break\
 $character"""
 
@@ -25,17 +22,16 @@ palette = 'catppuccin_mocha'
 [fill]
 symbol = " "
 
+
+# In tmux these are already shown by tmux/status or are intentionally hidden.
 [username]
-show_always = true
-style_user = "fg:mauve"
-style_root = "fg:red"
-format = '[$user]($style) '
+disabled = true
 
 [hostname]
-ssh_only = true
-ssh_symbol = "󰒋 "
-style = "fg:mauve"
-format = '[$ssh_symbol$hostname]($style) '
+disabled = true
+
+[time]
+disabled = true
 
 [directory]
 read_only = " 󰌾"
@@ -117,11 +113,6 @@ disabled = false
 show_notifications = true
 min_time_to_notify = 45000
 
-[time]
-disabled = false
-time_format = "%R"
-style = "fg:lavender"
-format = '[ $time]($style) '
 
 [character]
 disabled = false
