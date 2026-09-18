@@ -1,7 +1,9 @@
 -- lua/plugin/lang/languages.lua
 -- Unified language configuration data source.
 -- LSP names use nvim-lspconfig server names (mason-lspconfig handles mapping).
--- Formatter and linter names are direct Mason package names.
+-- Formatter names use conform.nvim formatter ids; linter names use nvim-lint
+-- linter ids. In most cases these match the Mason package name, but when they
+-- differ, mason.lua maps them via its `mason_name` table (e.g. ruff_format).
 
 local M = {}
 
@@ -71,12 +73,12 @@ M.languages = {
   c = {
     lsp = { "clangd" },
     treesitter = { "c" },
-    formatter = { "clang_format" },
+    formatter = { "clang-format" },
   },
   cpp = {
     lsp = { "clangd" },
     treesitter = { "cpp" },
-    formatter = { "clang_format" },
+    formatter = { "clang-format" },
   },
   cmake = {
     treesitter = { "cmake" },

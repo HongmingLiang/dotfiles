@@ -26,6 +26,7 @@ end, 200)
 
 vim.api.nvim_create_user_command("LangInstallTools", function()
   local registry = require("mason-registry")
+  -- conform/nvim-lint id -> Mason package name (only for names that differ)
   local mason_name = {
     ruff_format = "ruff",
   }
