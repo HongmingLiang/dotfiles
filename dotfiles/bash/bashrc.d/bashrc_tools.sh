@@ -36,13 +36,13 @@ fi
 
 # eza
 if command -v eza > /dev/null 2>&1; then
-  alias ls='eza --group --icons --git --group-directories-first'
+  alias ls='eza --group --icons --git --group-directories-first -F auto'
 fi
 
 # aliases for ls
-alias ll='ls -alhF'
+alias ll='ls -alh'
 alias la='ls -A'
-alias l='ls -hF'
+alias l='ls -h'
 
 # fzf
 if command -v fzf > /dev/null 2>&1; then
