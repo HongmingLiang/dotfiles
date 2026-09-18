@@ -7,3 +7,4 @@ require("plugins.lang.format")
 require("plugins.lang.treesitter")
 
 require("plugins.lang.python")
+require("plugins.lang.markdown")

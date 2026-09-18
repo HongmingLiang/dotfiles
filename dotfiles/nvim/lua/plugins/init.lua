@@ -38,6 +38,9 @@ local spec = {
   --- python
   { src = "https://github.com/linux-cultist/venv-selector.nvim.git" },
 
+  -- markdown
+  { src = "https://github.com/MeanderingProgrammer/render-markdown.nvim" },
+
   -- AI
   {
     src = "https://github.com/zbirenbaum/copilot.lua.git",
