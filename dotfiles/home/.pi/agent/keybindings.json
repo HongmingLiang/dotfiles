@@ -1,4 +1,6 @@
 {
   "tui.altScreen.previousPrompt": ["ctrl+shift+up", "alt+u"],
-  "tui.altScreen.nextPrompt": ["ctrl+shift+down", "alt+d"]
+  "tui.altScreen.nextPrompt": ["ctrl+shift+down", "alt+d"],
+  "app.model.select": ["alt+m", "ctrl+l"],
+  "app.session.resume": "alt+s"
 }
