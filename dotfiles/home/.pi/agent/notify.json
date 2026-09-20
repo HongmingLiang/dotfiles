@@ -1,0 +1,31 @@
+{
+  "enabled": true,
+  "promptDelayMs": 5000,
+  "settledDelayMs": 15000,
+  "notifyTools": [
+    "bash",
+    "write",
+    "edit"
+  ],
+  "muteTools": [],
+  "notifyToolPatterns": [
+    {
+      "startsWith": "ask",
+      "label": "question"
+    },
+    {
+      "startsWith": "question",
+      "label": "question"
+    }
+  ],
+  "notifyUnknownPrompt": "confirm",
+  "labels": {
+    "bash": "command",
+    "write": "file change",
+    "edit": "file change"
+  },
+  "showPrompt": true,
+  "protocol": "auto",
+  "debug": false,
+  "warnOnPassthrough": true
+}

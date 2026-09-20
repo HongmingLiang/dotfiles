@@ -4,6 +4,8 @@
 !settings.template.json
 !keybindings.json
 
+!notify.json
+
 !extensions/
 !extensions/**
 !themes/
