@@ -15,8 +15,8 @@
  * prompt text. Notifications linger in the OS notification center, so the
  * payload stays free of commands, paths, and other session details.
  *
- * Config: `~/.pi/agent/notify.json` (see DEFAULT_CONFIG). `/notify` shows the
- * effective values, `/notify test` renders every variant.
+ * Config: `notify.json` next to this file (see DEFAULT_CONFIG). `/notify`
+ * shows the effective values, `/notify test` renders every variant.
  */
 
 import { execFile } from "node:child_process";
@@ -29,7 +29,8 @@ import {
 	writeFileSync,
 	writeSync,
 } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { type ExtensionAPI, type ExtensionContext, getAgentDir } from "@earendil-works/pi-coding-agent";
 
 // ---------------------------------------------------------------------------
@@ -109,7 +110,8 @@ export const DEFAULT_CONFIG: Config = {
 	warnOnPassthrough: true,
 };
 
-const CONFIG_PATH = join(getAgentDir(), "notify.json");
+const EXTENSION_DIRECTORY = dirname(fileURLToPath(import.meta.url));
+const CONFIG_PATH = join(EXTENSION_DIRECTORY, "notify.json");
 const LOG_PATH = join(getAgentDir(), "pi-notify.log");
 const HOOK_NAME = "client-focus-in[777]";
 const TITLE_MAX = 60;
