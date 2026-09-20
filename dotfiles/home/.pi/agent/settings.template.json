@@ -21,8 +21,8 @@
   "terminal": {
     "showTerminalProgress": true
   },
-  "fileVibesEnabled": true,
-  "fileVibesRefreshInterval": 5,
+  "workingMessageEnabled": true,
+  "workingMessageRefreshInterval": 5,
   "packages": [
     "npm:pi-web-access",
     "npm:pi-mcp-adapter",

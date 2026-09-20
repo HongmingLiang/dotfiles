@@ -1,10 +1,10 @@
 /**
  * Working timer.
  *
- * Mirrors the working vibes on the right end of the editor's top border: while
+ * Mirrors the working message on the left end of the editor's top border: while
  * a prompt runs it shows the elapsed time, updated once per second, and freezes
  * at the final duration until the next prompt starts. Both sides are drawn with
- * the editor border color and plain text, so the timer matches the vibes.
+ * the editor border color and plain text, so the timer matches the message.
  *
  * The duration is `MM:SS` and switches to `HH:MM:SS` after one hour; the leading
  * unit is never capped, so a long run continues as `100:00:03`.
