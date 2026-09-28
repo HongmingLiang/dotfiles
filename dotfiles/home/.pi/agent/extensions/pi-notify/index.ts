@@ -9,7 +9,11 @@
  * The notification is a terminal escape sequence, so it is only as good as the
  * terminal in front of it. Inside tmux the sequence goes through the
  * passthrough envelope, and a one-shot `client-focus-in` hook jumps back to the
- * pane that fired it once the terminal window regains focus.
+ * pane that fired it once the terminal window regains focus. A pending
+ * notification is dropped when tmux reports that you are already operating the
+ * pane: scrollback (copy-mode) is open, or keys/mouse arrived while it was
+ * pending. Those keystrokes never reach Pi, so tmux itself has to answer that
+ * question.
  *
  * Content is deliberately terse: state and kind of input wanted, never the
  * prompt text. Notifications linger in the OS notification center, so the
@@ -388,6 +392,67 @@ async function passthroughAllowsBackground(): Promise<boolean | undefined> {
 	}
 }
 
+export interface TmuxActivity {
+	/** Scrollback (copy-mode/view-mode) is open in this pane. */
+	paneInMode: boolean;
+	/** Last input from the client viewing this session, epoch seconds. */
+	activity: number | undefined;
+	/** Client terminal currently focused; undefined when unknown. */
+	focused: boolean | undefined;
+	/** Focus reporting works, so `focused` is authoritative. */
+	tracksFocus: boolean;
+}
+
+/**
+ * What tmux knows about your grip on the pane. `client_activity` is input
+ * only — output does not touch it — so it is the signal for "someone is
+ * operating the terminal right now". Focus changes are input too, hence the
+ * `focused` guard: the focus-out that follows you leaving must not count.
+ */
+export async function queryTmuxActivity(): Promise<TmuxActivity | undefined> {
+	const pane = process.env.TMUX_PANE;
+	if (!process.env.TMUX || !pane) return undefined;
+
+	try {
+		const out = await tmux([
+			"display-message",
+			"-p",
+			"-t",
+			pane,
+			"#{pane_in_mode}\t#{client_session}\t#{session_name}\t" +
+				"#{client_activity}\t#{client_flags}\t#{client_termfeatures}",
+		]);
+		const [inMode, clientSession, sessionName, activity, flags, features] = out.split("\t");
+		// Without a client in this session the client_* fields leak whoever else
+		// is attached, so they are only trusted when the session matches.
+		const ours = Boolean(clientSession) && clientSession === sessionName;
+		const seconds = Number(activity);
+		return {
+			paneInMode: inMode === "1",
+			activity: ours && Number.isFinite(seconds) && seconds > 0 ? seconds : undefined,
+			focused: ours && flags ? flags.split(",").includes("focused") : undefined,
+			tracksFocus: ours && (features?.split(",").includes("focus") ?? false),
+		};
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Why a pending notification should stay silent: scrollback is open in this
+ * pane, or keys/mouse arrived while it was pending. A client that reports
+ * focus but does not have it is away, so its last input — often the focus-out
+ * itself — must not count. Exported for tests.
+ */
+export function activeReason(state: TmuxActivity, scheduledAtMs: number): "copy-mode" | "input" | undefined {
+	if (state.paneInMode) return "copy-mode";
+	if (state.tracksFocus && state.focused !== true) return undefined;
+	if (state.activity === undefined) return undefined;
+	// client_activity has second resolution, so an interaction in the same
+	// second the notification was scheduled still counts as during the wait.
+	return state.activity * 1000 >= scheduledAtMs - 1000 ? "input" : undefined;
+}
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -404,6 +469,8 @@ export type PendingPayload =
 interface PendingNotification {
 	payload: PendingPayload;
 	timer: ReturnType<typeof setTimeout> | undefined;
+	/** When the wait started; tmux input after this drops the notification. */
+	scheduledAt: number;
 }
 
 let config: Config = { ...DEFAULT_CONFIG };
@@ -707,7 +774,7 @@ function schedule(payload: PendingPayload): void {
 	config = loadConfig();
 	if (!notificationsEnabled || !config.enabled) return;
 
-	const pending: PendingNotification = { payload, timer: undefined };
+	const pending: PendingNotification = { payload, timer: undefined, scheduledAt: Date.now() };
 	const delay = payload.trigger === "prompt" ? config.promptDelayMs : config.settledDelayMs;
 
 	pending.timer = setTimeout(() => {
@@ -722,6 +789,17 @@ async function fire(pending: PendingNotification): Promise<void> {
 	if (current !== pending) return;
 
 	config = loadConfig();
+
+	// Copy-mode keys and mouse wheels never reach Pi, so only tmux can tell us
+	// that you are already on the pane; the popup would interrupt, not inform.
+	const state = await queryTmuxActivity();
+	const reason = state ? activeReason(state, pending.scheduledAt) : undefined;
+	if (reason) {
+		current = undefined;
+		log({ event: "skip", reason, trigger: pending.payload.trigger });
+		return;
+	}
+
 	target = (await queryTmuxTarget()) ?? target;
 
 	// The prompt is resolved at delivery time: with a 30s settle delay the world
@@ -769,6 +847,7 @@ export default function piNotifyExtension(pi: ExtensionAPI): void {
 		lastUserInput = readLastUserInput(ctx);
 		unsubscribeInput = ctx.ui.onTerminalInput(() => {
 			cancel("terminal-input");
+			return undefined;
 		});
 
 		if (config.warnOnPassthrough && !passthroughWarned) {
@@ -941,8 +1020,7 @@ export default function piNotifyExtension(pi: ExtensionAPI): void {
 
 					ctx.ui.notify(
 						`pi-notify: ${notificationsEnabled ? "on" : "off"} · ${channel} · ` +
-							`prompt ${settings.promptDelayMs / 1000}s · settled ${settings.settledDelayMs / 1000}s · ` +
-							`${tmuxState}`,
+							`prompt ${settings.promptDelayMs / 1000}s · settled ${settings.settledDelayMs / 1000}s · ${tmuxState}`,
 						"info",
 					);
 					ctx.ui.notify(
