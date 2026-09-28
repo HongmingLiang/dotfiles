@@ -60,13 +60,36 @@ const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 const EXTENSION_SOURCE_PREFIX = "extension:";
 
 /**
+ * pi names an extension after its entry file, so a folder extension such as
+ * `pi-notify/index.ts` is labelled `index` (resources) or `index.ts` (paths).
+ */
+const ENTRY_FILE = /^index\.[cm]?[jt]s$/i;
+
+function isEntryPoint(name: string): boolean {
+	return name === "index" || ENTRY_FILE.test(name);
+}
+
+/** Directory name to fall back to for `index.*` entry points. */
+function folderName(dirPath: string | undefined): string | undefined {
+	if (!dirPath) return undefined;
+	const name = path.basename(dirPath);
+	return name.length > 0 && name !== "extensions" ? name : undefined;
+}
+
+/**
  * Extension name when a skill came from an extension, e.g. "dynamic-resources"
- * for source "extension:dynamic-resources".
+ * for source "extension:dynamic-resources" or "npm:pi-mcp-adapter" when the
+ * extension only exposes an `index.ts` entry point.
  */
 function contributedByExtension(sourceInfo: SourceInfo): string | undefined {
 	if (!sourceInfo.source.startsWith(EXTENSION_SOURCE_PREFIX)) return undefined;
 	const name = sourceInfo.source.slice(EXTENSION_SOURCE_PREFIX.length).trim();
-	return name.length > 0 ? name : undefined;
+	if (name.length === 0) return undefined;
+	if (!isEntryPoint(name)) return name;
+
+	// The resource keeps the extension's base dir, which holds the real name.
+	const baseDir = sourceInfo.baseDir;
+	return (baseDir ? packageLabel(baseDir) : undefined) ?? folderName(baseDir) ?? name;
 }
 
 interface BuiltinCommand {
@@ -114,15 +137,16 @@ function packageLabel(filePath: string): string | undefined {
 	return `npm:${first}`;
 }
 
-/** "commands.ts", "toolbox/index.ts", "npm:pi-web-access" */
+/** "commands.ts", "pi-notify", "npm:pi-web-access" */
 function extensionLabel(sourceInfo: SourceInfo): string {
 	const pkg = packageLabel(sourceInfo.path);
 	if (pkg) return pkg;
 
-	const segments = sourceInfo.path.split(path.sep);
-	const base = segments.at(-1) ?? sourceInfo.path;
-	if (/^index\.[cm]?[jt]s$/.test(base)) return segments.slice(-2).join("/");
-	return base;
+	const file = sourceInfo.path.split(path.sep).at(-1) ?? sourceInfo.path;
+	if (!isEntryPoint(file)) return file;
+
+	// `pi-notify/index.ts` is the extension "pi-notify", not "index.ts".
+	return folderName(sourceInfo.baseDir) ?? folderName(path.dirname(sourceInfo.path)) ?? file;
 }
 
 /**
