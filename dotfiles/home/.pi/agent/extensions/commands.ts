@@ -145,8 +145,12 @@ function extensionLabel(sourceInfo: SourceInfo): string {
 	const file = sourceInfo.path.split(path.sep).at(-1) ?? sourceInfo.path;
 	if (!isEntryPoint(file)) return file;
 
-	// `pi-notify/index.ts` is the extension "pi-notify", not "index.ts".
-	return folderName(sourceInfo.baseDir) ?? folderName(path.dirname(sourceInfo.path)) ?? file;
+	// `pi-notify/index.ts` is the extension "pi-notify", not "index.ts". For a
+	// package `baseDir` is the package root, but for an auto-discovered local
+	// extension it is only the resource base (~/.pi/agent), so use the entry
+	// file's own directory there.
+	const dir = sourceInfo.origin === "package" ? sourceInfo.baseDir : path.dirname(sourceInfo.path);
+	return folderName(dir) ?? file;
 }
 
 /**
