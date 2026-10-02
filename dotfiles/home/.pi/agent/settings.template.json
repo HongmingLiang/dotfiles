@@ -1,31 +1,40 @@
 {
   "theme": "catppuccin-mocha",
+  "cacheWarming": "streaming",
+  "showCacheMissNotices": true,
+  "steeringMode": "all",
+  "followUpMode": "all",
   "showHardwareCursor": true,
   "quietStartup": false,
-  "showCacheMissNotices": true,
   "hideThinkingBlock": false,
   "enableInstallTelemetry": false,
   "treeFilterMode": "user-only",
   "tuiMode": "fullscreen",
   "fullscreenScrollbar": "auto",
   "fullscreenCopyOnSelect": true,
+  "fullscreenWheelScrollLines": "auto",
+  "fullscreenExitOutput": "resume-hint",
   "enableSkillCommands": true,
-  "steeringMode": "all",
-  "followUpMode": "all",
   "doubleEscapeAction": "tree",
   "autocompleteMaxVisible": 10,
   "editorPaddingX": 0,
+  "outputPad": 1,
   "compaction": {
     "enabled": true
   },
+  "markdown": {
+    "mermaid": "final"
+  },
+  "defaultTools": ["+codemode"],
   "terminal": {
     "showTerminalProgress": true
   },
+  "enabledModels": [ "deepseek/deepseek-flash" ],
+  "modelThinkingLevels": { "deepseek/deepseek-flash": "max" },
   "workingMessageEnabled": true,
   "workingMessageRefreshInterval": 5,
   "packages": [
     "npm:pi-web-access",
-    "npm:pi-mcp-adapter",
     "npm:@narumitw/pi-btw",
     "npm:@juicesharp/rpiv-ask-user-question"
   ]

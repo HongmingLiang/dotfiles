@@ -8,3 +8,5 @@
 !extensions/**
 !themes/
 !themes/**
+!prompts/
+!prompts/**
