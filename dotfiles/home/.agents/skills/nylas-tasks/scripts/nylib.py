@@ -189,7 +189,7 @@ def cache_load(name: str, ttl: int = config.CACHE_TTL_SECONDS) -> Any:
         blob = json.loads(_cache_file(name).read_text(encoding="utf-8"))
         if time.time() - float(blob["fetched_at"]) <= ttl:
             return blob["data"]
-    except OSError, ValueError, KeyError, TypeError:
+    except (OSError, ValueError, KeyError, TypeError):
         pass
     return None
 
