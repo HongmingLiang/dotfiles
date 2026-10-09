@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Log size guard for kanata's logs in /tmp. Optional.
+
+  Why a guard is needed: /tmp is swept daily by /usr/libexec/tmp_cleaner
+  (com.apple.tmp_cleaner), but it only deletes entries whose atime/mtime/ctime
+  are all older than 3 days. A daemon that keeps appending refreshes mtime and
+  ctime forever, so an actively written log never ages out on its own.
+
+  The guard itself (trim-logs.sh) is a short-lived interval job: run, trim,
+  exit. It only rewrites an *active* log — one it has not touched for 3 days is
+  left for tmp_cleaner to delete. Rewriting is in-place, which is safe because
+  launchd opens StandardOutPath/StandardErrorPath with O_APPEND, so the daemon
+  keeps appending at the new EOF instead of writing into a sparse hole
+  (verified on macOS 26.6).
+
+  The script path below is a placeholder token that mac_install.sh substitutes
+  with an absolute path at install time.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.hmliang.kanata.log-trim</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__TRIM_SCRIPT__</string>
+    </array>
+
+    <!-- On-demand job: run once when loaded, then every 3 days (259200s).
+         Launchd also runs a StartInterval job right after wake if the
+         interval elapsed while the machine slept, so no catch-up logic is
+         needed. It exits immediately, so it never shows up as a "running"
+         service. 3 days matches the idle window com.apple.tmp_cleaner uses,
+         so the two never fight over the same file. -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StartInterval</key>
+    <integer>259200</integer>
+
+    <!-- Log maintenance must never compete with foreground work. -->
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <key>LowPriorityIO</key>
+    <true/>
+</dict>
+</plist>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Karabiner system-extension activation. Optional convenience — this is the
+  one job that can be dropped without losing kanata functionality.
+
+  It runs `Karabiner-VirtualHIDDevice-Manager forceActivate`, which registers
+  the dext (org.pqrs.Karabiner-DriverKit-VirtualHIDDevice) with the system.
+
+  forceActivate, not activate: `activate` can sit waiting for a user to click
+  "Allow" in System Settings, and this job runs at boot where nobody can. It
+  only succeeds once the extension has been approved once — that one-time
+  approval is the manual step mac_install.sh prints at the end of its run, and
+  the installer also performs the same forceActivate by hand after installing
+  the pkg.
+
+  The activation persists across reboots, so upstream kanata's
+  docs/setup-macos.md runs forceActivate once at install time and ships no
+  LaunchDaemon for it. Keeping this job buys self-healing: after a macOS
+  upgrade, or if the extension is ever deactivated, it gets re-activated at
+  the next boot instead of leaving you with a dead keyboard path until you
+  notice. The cost is one process that starts and exits immediately.
+
+  To drop it: delete this file and its render_plist/load_daemon lines in
+  mac_install.sh, then re-activate manually if the extension ever goes away:
+    sudo /Applications/.Karabiner-VirtualHIDDevice-Manager.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Manager forceActivate
+
+  Lifecycle: RunAtLoad only — deliberately no KeepAlive, so that a failure
+  (for example an extension the user has not approved yet) does not become a
+  crash loop.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.hmliang.karabiner-vhidmanager</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Applications/.Karabiner-VirtualHIDDevice-Manager.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Manager</string>
+        <string>forceActivate</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Karabiner VirtualHIDDevice daemon. Required.
+
+  kanata does not create the virtual keyboard itself: it sends events to this
+  daemon over a local datagram socket ("karabiner-driverkit" crate). If the
+  daemon is not running, kanata aborts with
+  "aborted while talking to the Karabiner virtual HID daemon" — and it will
+  not start the daemon for you.
+
+  Why this file has to exist: the vendor package
+  (Karabiner-DriverKit-VirtualHIDDevice-<ver>.pkg) ships the daemon binary but
+  no LaunchDaemon for it. Its only postinstall action is
+  `killall Karabiner-VirtualHIDDevice-Daemon`, with the comment
+  "Restart the process in environments where the daemon is managed by launchd"
+  — i.e. supervision is left to whoever installed the package. That is us.
+  (With Karabiner-Elements installed instead, upstream would manage it and
+  this job would be redundant.)
+
+  Lifecycle: starts at boot, restarted on failure. Writes nothing, so no
+  StandardOutPath/StandardErrorPath is set.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.hmliang.karabiner-vhiddaemon</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+</dict>
+</plist>

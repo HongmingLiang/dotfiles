@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  kanata itself — the key remapper. Required.
+
+  LaunchDaemon (runs as root) because it must reach the Karabiner daemon's IPC
+  socket under "/Library/Application Support/org.pqrs/tmp/rootonly/", which is
+  mode 700 root:wheel.
+
+  Lifecycle: starts at boot and stays up. KeepAlive{SuccessfulExit:false} means
+  "restart on failure, but honour a clean exit" — that is what makes the
+  emergency-exit hotkey (LCtrl+Space+Esc, --emergency-exit-code defaults to 0)
+  stop kanata instead of having launchd respawn it instantly. A plain
+  KeepAlive/true would restart it either way and defeat the escape hatch.
+
+  --no-wait skips kanata's "Press enter to exit" prompt, which a service
+  manager has no way to answer. No --port: the optional TCP control server is
+  only needed if something outside kanata drives it (layer switching from a
+  script or tray app), and leaving it off means one less listener and one less
+  way for startup to fail.
+
+  Logs go to /tmp so macOS reaps them when kanata stops writing; an active log
+  is capped by com.hmliang.kanata.log-trim.plist instead. The log directory and
+  the two kanata paths below are placeholder tokens that mac_install.sh
+  substitutes with absolute paths at install time (it fails if any are left).
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.hmliang.kanata</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__KANATA_BIN__</string>
+        <string>-c</string>
+        <string>__KANATA_CONFIG__</string>
+        <string>--no-wait</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+        <!-- Restart on crash (non-zero exit), stay down on a clean exit. -->
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>__LOG_DIR__/kanata.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__LOG_DIR__/kanata.err.log</string>
+</dict>
+</plist>

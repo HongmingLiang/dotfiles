@@ -1,0 +1,60 @@
+(defcfg
+  process-unmapped-keys yes
+  concurrent-tap-hold yes
+  macos-dev-names-include (
+    "Apple Internal Keyboard / Trackpad"
+    "Air75 V3"
+    "Air75 V3-1"
+  )
+)
+
+(defvar
+  tap-time 100
+  hold-time 100
+)
+
+(defsrc
+  caps  lmet  rmet  h    j    k    l    a    s    d    f    g    z    x    c
+)
+
+(defalias
+  cap (tap-hold-press $tap-time $hold-time esc lctl)
+
+  ;; Left Cmd wears two hats: it stays Cmd for every other key (Cmd+C/W/Q keep
+  ;; working, since unmapped keys pass through with the modifier held), and it
+  ;; activates the arrows layer while held.
+  cmd (multi lmet (layer-while-held arrows))
+
+  ;; The movement keys must NOT carry Cmd: with it held the OS reads ⌘←/⌘↓/...
+  ;; as "jump to line/document boundary" instead of moving one unit.
+  lft (multi (release-key lmet) left)
+  dwn (multi (release-key lmet) down)
+  upr (multi (release-key lmet) up)
+  rgt (multi (release-key lmet) rght)
+
+  ;; Right Cmd does the same for the shifted number-row symbols, ported from
+  ;; dotfiles/komorebi/config.ahk (`RAlt & a/s/d/f/g/z/x/c`). Releasing rmet
+  ;; first is what keeps these as plain characters: with Cmd still down the OS
+  ;; would see ⌘⇧1/⌘⇧2/... which are app shortcuts (e.g. browser tab switching).
+  pun   (multi rmet (layer-while-held punct))
+  excl  (multi (release-key rmet) S-1) ;; !
+  at    (multi (release-key rmet) S-2) ;; @
+  hash  (multi (release-key rmet) S-3) ;; #
+  dlr   (multi (release-key rmet) S-4) ;; $
+  pct   (multi (release-key rmet) S-5) ;; %
+  caret (multi (release-key rmet) S-6) ;; ^
+  amp   (multi (release-key rmet) S-7) ;; &
+  star  (multi (release-key rmet) S-8) ;; *
+)
+
+(deflayer default
+  @cap  @cmd  @pun  _     _     _     _     _     _     _     _     _     _     _     _
+)
+
+(deflayer arrows
+  _     _     _     @lft  @dwn  @upr  @rgt  _     _     _     _     _     _     _     _
+)
+
+(deflayer punct
+  _     _     _     _     _     _     _     @excl @at   @hash @dlr  @pct  @caret @amp  @star
+)
