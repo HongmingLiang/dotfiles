@@ -8,17 +8,16 @@
   )
 )
 
-(defvar
-  tap-time 100
-  hold-time 100
-)
+;; Apple's HID driver gives the F-row its media meaning; seizing the device takes
+;; it out of the path (kanata#975), so kanata sends the media/Apple-vendor keys.
 
 (defsrc
   caps  lmet  rmet  h    j    k    l    a    s    d    f    g    z    x    c
+  f1    f2    f3    f4    f5    f6    f7    f8    f9    f10   f11   f12   fn
 )
 
 (defalias
-  cap (tap-hold-press $tap-time $hold-time esc lctl)
+  cap (tap-hold-press 100 100 esc lctl)
 
   ;; Left Cmd wears two hats: it stays Cmd for every other key (Cmd+C/W/Q keep
   ;; working, since unmapped keys pass through with the modifier held), and it
@@ -45,16 +44,28 @@
   caret (multi (release-key rmet) S-6) ;; ^
   amp   (multi (release-key rmet) S-7) ;; &
   star  (multi (release-key rmet) S-8) ;; *
+
+  ;; fn keeps its macOS meaning (Globe, fn-twice dictation) and holds real F-keys.
+  fnl   (multi fn (layer-while-held fnkeys))
 )
 
 (deflayer default
   @cap  @cmd  @pun  _     _     _     _     _     _     _     _     _     _     _     _
+  brdn  brup  MissionControl  SpotLightSearch  Dictation  DoNotDisturb  prev  pp  next  mute  vold  volu  @fnl
 )
 
 (deflayer arrows
   _     _     _     @lft  @dwn  @upr  @rgt  _     _     _     _     _     _     _     _
+  _     _     _     _     _     _     _     _     _     _     _     _     _
 )
 
 (deflayer punct
   _     _     _     _     _     _     _     @excl @at   @hash @dlr  @pct  @caret @amp  @star
+  _     _     _     _     _     _     _     _     _     _     _     _     _
+)
+
+;; fn + F-row = the real F-keys; `_` elsewhere falls through to `default`.
+(deflayer fnkeys
+  _     _     _     _     _     _     _     _     _     _     _     _     _     _     _
+  f1    f2    f3    f4    f5    f6    f7    f8    f9    f10   f11   f12   fn
 )
