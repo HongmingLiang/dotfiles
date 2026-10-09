@@ -1,0 +1,28 @@
+# ~/.config/ghostty/config
+
+theme = Catppuccin Mocha
+
+font-family = JetBrainsMono Nerd Font Mono
+font-size = 14
+font-style = "Regular"
+
+scrollback-limit = 10000
+background-opacity = 0.95
+
+cursor-style = bar
+cursor-style-blink = false
+
+macos-option-as-alt = true
+shell-integration = detect
+shell-integration-features = ssh-env,ssh-terminfo
+auto-update = check
+
+keybind = shift+enter=text:\x1b[13;2u
+
+keybind = cmd+b=text:\x1bb
+keybind = cmd+s=esc:s
+keybind = cmd+m=esc:m
+keybind = cmd+u=esc:u
+keybind = cmd+d=esc:d
+keybind = cmd+p=toggle_command_palette
+keybind = global:cmd+grave_accent=toggle_quick_terminal
