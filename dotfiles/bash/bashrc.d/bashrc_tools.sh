@@ -50,14 +50,19 @@ if command -v fzf > /dev/null 2>&1; then
   # theme: catppuccin mocha
   export FZF_DEFAULT_OPTS=" \
     --color=spinner:#F5E0DC,hl:#F38BA8 \
-    --color=fg:#CDD6F4,header:#F38BA8,info:#CBA6F7,pointer:#F5E0DC \
+    --color=fg:#CDD6F4,header:#94E2D5,info:#CBA6F7,pointer:#F5E0DC \
     --color=marker:#B4BEFE,fg+:#CDD6F4,prompt:#CBA6F7,hl+:#F38BA8 \
     --color=selected-bg:#45475A \
-    --color=border:#6C7086,label:#CDD6F4"
+    --color=border:#6C7086,label:#CDD6F4 \
+    --color=input-border:#89B4FA,input-label:#89B4FA \
+    --color=list-border:#CBA6F7,list-label:#CBA6F7 \
+    --color=header-border:#94E2D5,header-label:#94E2D5 \
+    --color=preview-border:#FAB387,preview-label:#FAB387 \
+    --style=full \
+    --layout=reverse \
+    --preview-window='right,45%,border-rounded,wrap'  "
 
-  command -v tmux &> /dev/null && alias ftsw='tmux switch-client -t $(tmux ls -F "#{session_name}" | fzf)'
-
-  __falias_widget() { # interactively search alias and place it on command line
+  falias() { # interactively search alias and place it on command line
     local cmd
     cmd=$(alias | sed "s/^alias //" | fzf --prompt="Alias> " | awk -F'=' '{print $1}')
     if [[ -n "$cmd" ]]; then
@@ -65,7 +70,15 @@ if command -v fzf > /dev/null 2>&1; then
       READLINE_POINT=${#READLINE_LINE}
     fi
   }
-  bind -x '"\C-x\C-a": __falias_widget'
+  bind -x '"\C-f\C-a": falias'
+
+  if command -v tmux &> /dev/null 2>&1; then
+    ftsw() {
+      tmux switch-client -t $(tmux ls -F "#{session_name}" | fzf)
+    }
+    bind -x '"\C-f\C-t": ftsw'
+  fi
+
 fi
 
 # bat: better `cat`

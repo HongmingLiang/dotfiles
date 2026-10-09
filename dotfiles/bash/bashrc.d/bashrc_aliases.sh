@@ -8,6 +8,7 @@ alias so='source'
 alias sobash='source ~/.bashrc'
 alias soprofile='source ~/.profile'
 alias sovenv='source .venv/bin/activate'
+bind -x '"\C-x\C-b": source ~/.bashrc && echo "source ~/.bashrc"'
 
 # clear screen
 alias clr='clear'
