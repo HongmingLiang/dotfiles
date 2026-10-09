@@ -1,10 +1,6 @@
 #!/bin/bash
-# ============================================================
-# Kanata macOS Installer
-# - Strict mode: exit on error, unset var, pipe failure
-# - Renders plist templates with runtime-detected absolute paths
-# - Deploys, loads, and verifies all services in one run
-# ============================================================
+# Kanata macOS installer: render the plist templates with absolute paths, then
+# deploy, load and verify the LaunchDaemons.
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -61,10 +57,8 @@ DRIVER_TMP="$(mktemp -d)"
 TMP_FILES+=("$DRIVER_TMP")
 DRIVER_PKG="$DRIVER_TMP/Karabiner-DriverKit-VirtualHIDDevice.pkg"
 
-# Logs deliberately live in /tmp: com.apple.tmp_cleaner sweeps that directory
-# daily and deletes anything idle for 3+ days, so nothing accumulates in a
-# hand-made log directory. A running daemon keeps refreshing mtime though, so
-# an active log never ages out — com.hmliang.kanata.log-trim bounds its size instead.
+# Logs live in /tmp, which macOS sweeps daily (only entries idle 3+ days).
+# A daemon keeps its own log fresh, so log-trim bounds its size instead.
 LOG_DIR="/tmp"
 LOG_OUT="$LOG_DIR/kanata.out.log"
 LOG_ERR="$LOG_DIR/kanata.err.log"
@@ -96,10 +90,9 @@ KANATA_BIN="$KANATA_PREFIX/bin/kanata"
 DRIVER_WANTED="${DRIVER_VERSION#v}"
 DRIVER_URL="https://github.com/pqrs-org/Karabiner-DriverKit-VirtualHIDDevice/releases/download/${DRIVER_VERSION}/Karabiner-DriverKit-VirtualHIDDevice-${DRIVER_WANTED}.pkg"
 
-# Re-running this script must not re-install a driver that is already there:
-# the pkg's postinstall does `killall Karabiner-VirtualHIDDevice-Daemon` (our
-# LaunchDaemon would restart it) and you would retype the admin password for
-# nothing. The receipt tells us the installed version. FORCE_DRIVER=1 overrides.
+# Skip re-installing the driver when the receipt shows it is already there:
+# the pkg's postinstall kills our daemon and asks for the admin password again.
+# FORCE_DRIVER=1 overrides.
 DRIVER_INSTALLED_VER=""
 if pkgutil --pkg-info "$DRIVER_PKGID" >/dev/null 2>&1; then
     DRIVER_INSTALLED_VER="$(pkgutil --pkg-info "$DRIVER_PKGID" 2>/dev/null | awk '/^version:/{print $2}')" || true
@@ -180,9 +173,8 @@ sudo install -m 644 -o root -g wheel \
 # ============================================================
 # 4. Load services
 # ============================================================
-# `bootout` first so that re-running the installer applies edited plists (an
-# already-loaded job would silently keep the old file), then `enable`, then
-# `bootstrap` — enable-first avoids "Bootstrap failed: 5".
+# bootout first so edited plists are re-read, then enable, then bootstrap
+# (enable-first avoids "Bootstrap failed: 5").
 load_daemon() {
     local label="$1" plist="/Library/LaunchDaemons/$1.plist"
     sudo launchctl bootout "system/$label" 2>/dev/null || true
@@ -262,14 +254,9 @@ check_running com.hmliang.kanata                || FAILED=1
 check_oneshot com.hmliang.karabiner-vhidmanager || FAILED=1
 check_oneshot com.hmliang.kanata.log-trim       || FAILED=1
 
-# On a first install kanata is expected to be down until the user approves the
-# Input Monitoring + Accessibility grants: macOS requires a human for those, and
-# nothing here can stand in for one (kanata's own registration call only asks
-# ApplicationServices/IOKit to register the binary — no TCC row is created —
-# rewriting TCC.db is unsupported, a PPPC profile would need approval anyway and
-# would go stale on every `brew upgrade`, and UI scripting needs Accessibility
-# before it can grant Accessibility). What the script can do is remove the
-# guesswork: copy the exact path the daemon execs and open both panes.
+# On a first install kanata stays down until the user approves the Input
+# Monitoring and Accessibility grants; macOS requires a human there and no
+# script can stand in. So just print the exact path the daemon execs.
 PERM_ISSUE=""
 if [ "$FAILED" -ne 0 ] && [ -f "$LOG_ERR" ] && \
    grep -Eq 'needs macOS (Input Monitoring|Accessibility) permission|\(iokit/common\) not permitted' "$LOG_ERR"; then

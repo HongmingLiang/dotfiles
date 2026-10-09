@@ -1,20 +1,9 @@
 #!/bin/bash
-# ============================================================
-# Kanata log guard (macOS)
-# - Bounds the size of kanata's launchd-managed logs, keeping the
-#   newest bytes as context instead of wiping everything.
-# - Why a guard is needed: /tmp is swept daily by
-#   /usr/libexec/tmp_cleaner, but it only deletes files whose
-#   atime/mtime/ctime are all older than 3 days. A daemon that
-#   keeps appending refreshes mtime/ctime forever, so an
-#   actively written log never ages out.
-# - Why in-place truncation is safe: launchd opens
-#   StandardOutPath/StandardErrorPath with O_APPEND, so after
-#   `cat tmp > log` the daemon keeps appending at the new EOF
-#   rather than writing into a hole (verified on macOS 26.6).
-# - Intended to be run by the com.hmliang.kanata.log-trim LaunchDaemon as
-#   root. Usage: trim-logs.sh [logfile ...]
-# ============================================================
+# Kanata log guard (macOS): keep the launchd logs from growing forever.
+# /tmp is swept daily, but only for entries idle 3+ days, and an appending
+# daemon never ages out. Truncating in place is safe because launchd opens
+# these logs with O_APPEND. Run as root by com.hmliang.kanata.log-trim.
+# Usage: trim-logs.sh [logfile ...]
 set -euo pipefail
 IFS=$'\n\t'
 
@@ -22,9 +11,8 @@ IFS=$'\n\t'
 MAX_BYTES="${MAX_BYTES:-10485760}"  # 10 MiB
 KEEP_BYTES="${KEEP_BYTES:-1048576}" # 1 MiB
 
-# Leave a file alone once macOS is about to reap it: com.apple.tmp_cleaner
-# deletes /tmp entries idle for 3+ days, and rewriting one here would reset that
-# clock. Matches tmp_cleaner's daily_clean_tmps_days=3.
+# Don't touch a file macOS is about to reap: tmp_cleaner deletes /tmp entries
+# idle for 3+ days, and rewriting one here would reset that clock.
 IDLE_SECONDS="${IDLE_SECONDS:-259200}" # 3 days
 
 # launchd calls this with no arguments.

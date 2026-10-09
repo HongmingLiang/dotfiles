@@ -91,11 +91,9 @@ class _PooledHttp:
         import requests
         import requests.adapters
 
-        # The SDK reaches for `requests.exceptions.Timeout` inside its own error
-        # handling, resolved on whatever object replaced `sdk_http.requests`.
-        # Without this the attribute lookup fails first and every transport error
-        # (a stopped proxy, a refused connection, a bad URL) is reported as
-        # "AttributeError: '_PooledHttp' object has no attribute 'exceptions'".
+        # The SDK resolves `requests.exceptions.Timeout` off whatever object
+        # replaced `sdk_http.requests`; without this every transport error is a
+        # "_PooledHttp has no attribute 'exceptions'" AttributeError instead.
         self.exceptions = requests.exceptions
         self._session = requests.Session()
         adapter = requests.adapters.HTTPAdapter(pool_connections=8, pool_maxsize=8)

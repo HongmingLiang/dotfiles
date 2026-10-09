@@ -1,27 +1,15 @@
 /**
- * Slash command directory.
+ * `/commands` - print every slash command in the session into the transcript:
+ * built-ins, extension commands, prompt templates and `/skill:<name>` entries,
+ * each labelled with its source. `/commands <group>` filters.
  *
- * `/commands` prints every slash command available in the current session into
- * the transcript:
+ * Output goes through pi.appendEntry() and an entry renderer, so it never reaches
+ * the LLM. Re-running appends a fresh entry, and the renderer returns no lines for
+ * superseded ids, which is how the previous output collapses.
  *
- *   - Built-in:   pi's own interactive commands (/model, /settings, /hotkeys, ...)
- *   - Extensions: commands registered via pi.registerCommand(), labelled with
- *                 the extension file (or package) that registered them
- *   - Prompts:    prompt templates from ~/.pi/agent/prompts and .pi/prompts
- *   - Skills:     skills exposed as /skill:<name>, labelled with the extension or
- *                 package that contributes them plus whether the model may
- *                 invoke them (see `disable-model-invocation` in docs/skills.md)
- *
- * `/commands <group>` filters the listing. The output is written with
- * pi.appendEntry() and drawn by a registered entry renderer, so it never
- * reaches the LLM context. Running it again appends a fresh entry while the
- * previous one collapses to nothing, which is as close to "replace the last
- * output" as the transcript allows.
- *
- * pi.getCommands() covers extensions, prompts, and skills but deliberately
- * omits built-ins. Those are read from pi's internal command table via
- * getPackageDir(), best-effort: if a release moves the file, the built-in
- * group is dropped instead of failing the command.
+ * pi.getCommands() covers extensions, prompts and skills but not built-ins. Those are
+ * read best-effort from pi internal table via getPackageDir(): if a release moves the
+ * file, the built-in group is dropped instead of failing the command.
  */
 
 import * as path from "node:path";
@@ -60,8 +48,8 @@ const NODE_MODULES = `${path.sep}node_modules${path.sep}`;
 const EXTENSION_SOURCE_PREFIX = "extension:";
 
 /**
- * pi names an extension after its entry file, so a folder extension such as
- * `pi-notify/index.ts` is labelled `index` (resources) or `index.ts` (paths).
+ * pi names an extension after its entry file, so `pi-notify/index.ts` becomes
+ * `index` (resources) or `index.ts` (paths).
  */
 const ENTRY_FILE = /^index\.[cm]?[jt]s$/i;
 
@@ -77,9 +65,8 @@ function folderName(dirPath: string | undefined): string | undefined {
 }
 
 /**
- * Extension name when a skill came from an extension, e.g. "dynamic-resources"
- * for source "extension:dynamic-resources" or "npm:pi-mcp-adapter" when the
- * extension only exposes an `index.ts` entry point.
+ * Extension name behind a skill, e.g. "dynamic-resources" for
+ * "extension:dynamic-resources" or "npm:pi-mcp-adapter" for an `index.ts` entry.
  */
 function contributedByExtension(sourceInfo: SourceInfo): string | undefined {
 	if (!sourceInfo.source.startsWith(EXTENSION_SOURCE_PREFIX)) return undefined;
@@ -145,10 +132,9 @@ function extensionLabel(sourceInfo: SourceInfo): string {
 	const file = sourceInfo.path.split(path.sep).at(-1) ?? sourceInfo.path;
 	if (!isEntryPoint(file)) return file;
 
-	// `pi-notify/index.ts` is the extension "pi-notify", not "index.ts". For a
-	// package `baseDir` is the package root, but for an auto-discovered local
-	// extension it is only the resource base (~/.pi/agent), so use the entry
-	// file's own directory there.
+	// For a package `baseDir` is the package root; for an auto-discovered local
+	// extension it is only the resource base (~/.pi/agent), so use the entry file's
+	// own directory there.
 	const dir = sourceInfo.origin === "package" ? sourceInfo.baseDir : path.dirname(sourceInfo.path);
 	return folderName(dir) ?? file;
 }
@@ -172,10 +158,9 @@ export default function commandsExtension(pi: ExtensionAPI): void {
 	let builtinCache: Promise<BuiltinCommand[]> | undefined;
 	const builtins = (): Promise<BuiltinCommand[]> => (builtinCache ??= loadBuiltinCommands());
 
-	// pi has no API for removing a transcript entry, so a repeated /commands
-	// appends a new entry and the superseded one collapses itself: every entry
-	// renders on each frame, and stale ids return no lines. Ids are restored
-	// from the session so a resumed or reloaded session only shows the last one.
+	// pi cannot remove a transcript entry, so a repeated /commands appends a new one
+	// and the old one collapses (stale ids render no lines). Ids come from the session,
+	// so a resumed session shows only the last output.
 	let latestEntryId: string | undefined;
 	let entrySeq = 0;
 

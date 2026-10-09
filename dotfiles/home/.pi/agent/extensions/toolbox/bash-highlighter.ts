@@ -1,11 +1,9 @@
 /**
- * Bash command syntax highlighting.
+ * Bash command highlighting
  *
- * The bash grammar used by the generic highlighter does not reliably color
- * command names, flags, paths, or shell operators. This small tokenizer keeps
- * the display useful for shell commands while remaining deliberately forgiving:
- * malformed or incomplete commands are returned as-is rather than breaking the
- * tool row.
+ * The generic bash grammar does not reliably color command names, flags, paths or
+ * operators. This tokenizer stays deliberately forgiving: malformed input is
+ * returned as-is instead of breaking the tool row.
  */
 
 export type BashSyntaxToken =

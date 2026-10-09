@@ -100,10 +100,8 @@ vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
   end,
 })
 
--- Unified LSP toggle command (no persistence across sessions).
--- Usage:
---   :LspToggle          -> if any enabled, disable all; if all disabled, enable all
---   :LspToggle lua_ls   -> toggle a single server
+-- :LspToggle [server] - toggle all servers, or just the named one
+-- (session-only).
 vim.api.nvim_create_user_command("LspToggle", function(opts)
   local function set_all(enabled)
     for _, name in ipairs(LSP_SERVERS) do

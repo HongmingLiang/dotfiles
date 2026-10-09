@@ -7,11 +7,8 @@
 # ]
 # ///
 """
-event_list -- read-only event viewer for Nylas calendar accounts, built on the
-Python SDK.
-
-Read-only guarantee: the only API call this script makes is events.list, so it
-never creates, updates, deletes, or answers an event.
+event_list -- read-only event viewer for Nylas calendar accounts (Python SDK).
+The only API call is events.list, so nothing is created, updated or answered.
 
 Usage (from the skill directory):
     uv run scripts/event_list.py [flags]
@@ -27,29 +24,18 @@ Usage (from the skill directory):
     -j                    JSON output for piping
     --refresh             ignore the cached calendar lists
 
-Scope: -a narrows which accounts are read. It falls back to
-NYLAS_CALENDAR_ACCOUNT when that is set, and otherwise to the Microsoft
-(Outlook) account; pass -a all to read every account.
-
-Calendars with CJK names are skipped by default, because they are usually
-localized mirrors or holiday feeds rather than the calendars people schedule
-against. The skip is always reported, and --include-cjk turns it off.
-
-Recurring events are listed one row per series by default, dated at the series'
-nearest occurrence -- its original start can be years outside the window, so the
-oldest occurrence says nothing useful. --expand lists every occurrence inside
-the window instead.
+-a picks the account: NYLAS_CALENDAR_ACCOUNT, else the Microsoft one; -a all
+reads every account. Calendars with CJK names are skipped and reported unless
+--include-cjk. Recurring events show one row per series, dated at the nearest
+occurrence, unless --expand.
 
 Notes:
-  * Times are shown in local time. start/end in the JSON output are ISO 8601;
-    all-day events carry dates instead of timestamps, with the API's exclusive
-    end date.
-  * Each event is a header line (date, time, calendar) followed by a labelled
-    block -- Title, Location, Description, and ID with --ids -- whose values all
-    start in the same column. Participants and provider links are in the JSON
-    output (they are fetched either way).
-  * Per-calendar failures do not hide the other calendars, and the exit code is
-    1 when anything failed, so callers can detect partial runs.
+  * Times are local; JSON start/end are ISO 8601, all-day events carry the API's
+    exclusive end date.
+  * Each event is a header line plus a labelled block (Title, Location,
+    Description, ID with --ids). Participants and provider links are JSON-only.
+  * Per-calendar failures do not hide the other calendars; the exit code is 1
+    when anything failed.
 """
 
 import argparse

@@ -7,12 +7,9 @@
 # ]
 # ///
 """
-email_read -- read-only message reader: one or more messages, in full.
-
-Read-only by construction: the only calls this script makes are messages.find
-plus the cached folders.list / grants.list lookups used to name things. It never
-sends, deletes, moves, or marks anything, and it downloads nothing unless
---save [DIR] is given.
+email_read -- read-only reader for one or more messages, in full. The only
+calls are messages.find plus the cached folders/grants lookups; nothing is sent,
+deleted or moved, and attachments are fetched only with --save.
 
 Usage (from the skill directory):
     uv run scripts/email_read.py <id> [<id> ...] [flags]
@@ -23,27 +20,21 @@ Usage (from the skill directory):
     <id> --save [DIR]     save the attachments: DIR, or a fresh temp dir
     <id> -j               JSON output: raw HTML body, no rendering
 
-Reading several messages needs no config file: the ids are the whole input, so
-they are passed as arguments or piped in. `-` accepts plain ids, the JSON that
-`email_list.py -j` prints, or a JSON list -- a selection is expressed with the
-listing's own filters instead of with a second query language implemented here:
+`-` accepts plain ids, the JSON that `email_list.py -j` prints, or a JSON list:
 
     uv run scripts/email_list.py -u --days 3 --ids | uv run scripts/email_read.py -
     uv run scripts/email_list.py -j --days 3 | uv run scripts/email_read.py -
 
-Flags apply to the whole run -- none of them has a per-message variant worth a
-schema -- and ids are deduplicated, so piping a listing that repeats one is safe.
+Flags apply to the whole run; ids are deduplicated.
 
 Notes:
-  * The account is auto-detected: every selected account is asked, and the one
-    that owns the id answers. A miss is a 404 and costs one request per account
-    (about 0.5s), so pass -a when you already know where the message lives.
-  * Bodies arrive as HTML from every provider. The table renders them as plain
-    text paragraph by paragraph, never truncated; JSON keeps the raw HTML.
-  * Attachments are listed only: the bytes are fetched when --save asks for
-    them, into DIR or a fresh temp directory (never overwriting a file).
-  * Exit code is 1 when any requested id failed, so partial runs stay
-    detectable, and 2 for a missing API key or unreadable input.
+  * Accounts are auto-detected: every selected account is asked, one request each
+    (~0.5s), so pass -a when you already know where the message lives.
+  * HTML bodies render as plain text, paragraph by paragraph and never truncated;
+    JSON keeps the raw HTML.
+  * Attachments are listed only; --save fetches them and never overwrites a file.
+  * Exit code 1 when any requested id failed, 2 for a missing API key or
+    unreadable input.
 """
 
 import argparse

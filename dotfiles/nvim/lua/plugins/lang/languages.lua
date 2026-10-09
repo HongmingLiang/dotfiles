@@ -1,24 +1,12 @@
--- lua/plugin/lang/languages.lua
--- Unified language configuration data source.
--- LSP names use nvim-lspconfig server names (mason-lspconfig handles mapping).
--- Formatter names use conform.nvim formatter ids; linter names use nvim-lint
--- linter ids. In most cases these match the Mason package name, but when they
--- differ, mason.lua maps them via its `mason_name` table (e.g. ruff_format).
+-- lua/plugins/lang/languages.lua: language -> tool mapping.
+-- LSP/formatter/linter names are nvim-lspconfig / conform.nvim / nvim-lint ids,
+-- usually the Mason package name (mason.lua maps the exceptions).
 
 local M = {}
 
---- Core mapping: language name -> tool categories.
--- Supported categories:
---   lsp        : list of LSP server names (nvim-lspconfig style)
---   treesitter : list of Tree-sitter parser names
---   formatter  : list of formatter names (Mason packages)
---   linter     : list of linter names (Mason packages)
---   runner     : optional function used to build a shell command
---                for running the current file. Signature:
---                  runner(filepath: string) -> command: string
---                This is consumed by lua/config/run_current.lua,
---                which sends the command to the floating terminal.
--- Each category is optional; omit if not needed.
+--- Core mapping: language name -> optional tool categories.
+-- lsp (nvim-lspconfig), treesitter, formatter, linter, and runner(filepath)
+-- -> shell command, consumed by lua/config/run_current.lua.
 M.languages = {
   lua = {
     lsp = { "lua_ls" },

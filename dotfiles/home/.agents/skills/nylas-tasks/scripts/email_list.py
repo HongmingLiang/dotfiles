@@ -7,10 +7,8 @@
 # ]
 # ///
 """
-email_list -- read-only mail viewer for every account, built on the Nylas Python SDK.
-
-Read-only guarantee: the only API call this script makes is messages.list, so it
-never sends, deletes, moves, or marks anything.
+email_list -- read-only mail viewer for every account (Nylas Python SDK). The
+only API call is messages.list, so nothing is sent, deleted, moved or marked.
 
 Usage (from the skill directory):
     uv run scripts/email_list.py [flags]
@@ -22,25 +20,23 @@ Usage (from the skill directory):
     -a google --all-folders   every folder, subfolders included
     --days 3                  only mail received in the last 3 days
     --all --max 50            paginate, at most 50 per account
-    --folders                 list folders with their unread counts, read nothing
+    --folders                 list folders with unread counts, read nothing
     --ids                     bare message ids, one per line (for piping)
     -j                        JSON output for piping
     --refresh                 ignore the cached account/folder lists
 
-Output legend:  U unread   S starred, followed by sender and subject.
-
-See also: `email_read.py`, next to this script, reads one or more messages in
-full and takes its ids from a listing:
-    uv run scripts/email_list.py -j | uv run scripts/email_read.py -
+Output legend:  U unread   S starred.
 
 Notes:
-  * Folder names match case-insensitively, and a unique substring is enough.
-  * A folder missing in one account skips that account only, and the exit code
-    is 1 when any account failed, so callers can detect partial runs.
+  * Folder names match case-insensitively; a unique substring is enough.
+  * A folder missing in one account skips that account only; the exit code is 1
+    when any account failed.
   * Cached ids self-heal: a stale folder id triggers one refresh and one retry.
-  * Microsoft answers about 0.1-0.2s per message, so pages there are capped at
-    50 and larger requests paginate; Google and IMAP are roughly ten times
-    faster.
+  * Microsoft costs ~0.1-0.2s per message and caps pages at 50; Google and IMAP
+    are about ten times faster.
+
+email_read.py, next to this script, reads messages in full:
+    uv run scripts/email_list.py -j | uv run scripts/email_read.py -
 """
 
 import argparse

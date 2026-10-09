@@ -1,13 +1,9 @@
 /**
- * File-based working messages.
+ * File-based working messages
  *
- * Reads every regular file under this extension's message directory, treats
- * every non-empty line as one message, and displays the messages while Pi is
- * running an agent turn.
- *
- * A message changes on every tool call and also every few seconds while the
- * agent is streaming. The list is shuffled, but every entry is used once per
- * cycle before the list is shuffled again.
+ * Every non-empty line of every file in the message directory is one message,
+ * shown while an agent turn runs. The list is shuffled, and every entry is used
+ * once per cycle before reshuffling.
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";

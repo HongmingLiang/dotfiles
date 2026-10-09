@@ -1,17 +1,13 @@
 /**
- * Toolbox - a shared shell for every Pi tool execution.
+ * Toolbox - a shared shell for every Pi tool execution
  *
- * Pi's public tool-renderer hooks are per tool. The interactive UI, however,
- * renders every agent tool (built-ins, MCP adapters, subagents, and extension
- * tools) through ToolExecutionComponent. Wrapping that component gives every
- * tool the same shell without replacing or re-registering anybody else's tool.
- * Bash call rows additionally use the standalone tokenizer in
- * bash-highlighter.ts.
+ * Pi's renderer hooks are per tool, but the UI draws all agent tools (built-ins,
+ * MCP, subagents, extensions) through ToolExecutionComponent. Wrapping that
+ * component gives them one shell without re-registering any tool; bash rows
+ * additionally use the tokenizer in bash-highlighter.ts.
  *
- * The wrapper deliberately removes only SGR background-color sequences from the
- * rendered lines. Foreground colors, syntax highlighting, hyperlinks, and
- * terminal image sequences are left intact, so the tool content remains
- * transparent while retaining its normal rendering.
+ * The wrapper strips only SGR background colors: foreground colors, highlighting,
+ * hyperlinks and image sequences stay intact.
  */
 
 import {
@@ -51,11 +47,11 @@ type PatchedPrototype = {
 };
 
 /**
- * Strip background SGR parameters while preserving all other styling.
+ * Strip background SGR parameters, keep all other styling.
  *
- * theme.bg() emits 48;5;n / 48;2;r;g;b followed by 49. Some third-party
- * renderers may combine foreground and background parameters in one SGR, so
- * this parses the parameter list instead of deleting a whole escape blindly.
+ * theme.bg() emits 48;5;n / 48;2;r;g;b followed by 49, and third-party renderers
+ * may mix foreground and background in one SGR, so parse the parameter list
+ * instead of deleting a whole escape.
  */
 function removeBackgroundSgr(text: string): string {
 	return text.replace(/\x1b\[([0-9;]*)m/g, (_sequence, rawParams: string) => {
@@ -105,10 +101,8 @@ function getStatus(component: ToolExecutionLike, patch: ToolboxPatch): ToolStatu
 		if (remembered) return remembered;
 	}
 
-	// These are current pi internals. The lifecycle map covers component shapes
-	// that do not expose these fields; these fallbacks also cover restored
-	// sessions and already-rendered results that predate this extension's event
-	// handlers.
+	// Fallbacks for current pi internals: the lifecycle map covers component shapes
+	// without these fields, and restored sessions may predate this extension.
 	if (!component.result) return "running";
 	return component.result.isError ? "error" : "success";
 }

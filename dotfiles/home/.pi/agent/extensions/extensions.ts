@@ -1,28 +1,16 @@
 /**
  * Extensions Manager
  *
- * Adds /extensions: a searchable list of every extension pi would load, split
- * into "Direct extensions" (auto-discovered files in ~/.pi/agent/extensions and
- * .pi/extensions, plus explicit `extensions` entries) and "Package extensions"
- * (extensions contributed by packages from settings `packages`).
+ * `/extensions` - searchable list of every extension pi would load, split into
+ * "direct" (auto-discovered files plus explicit `extensions` entries) and "package"
+ * (contributed by settings `packages`). Rows are prefixed G = global (~/.pi/agent)
+ * or L = local (this project's .pi/).
  *
- * Each row is prefixed with its scope: G = global (~/.pi/agent, used by every
- * project), L = local (this project's .pi/ directory).
- *
- * Behavior:
- * - Toggles are only staged while the list is open. They are written to
- *   settings.json when the list is closed with Esc — Esc applies, it is not a
- *   cancel and there is no separate confirm step. Closing with no changes
- *   writes nothing and does not reload.
- * - Disabling writes a `-path` force-exclude entry. Enabling just removes the
- *   exclusion again instead of adding a redundant `+path`, because extensions
- *   are enabled by default. Empty `extensions` arrays/fields are deleted.
- * - After a successful write the session is reloaded, so changes take effect
- *   immediately. Nothing is cached: the list is resolved from settings plus
- *   the filesystem on every open, which keeps disabled extensions visible and
- *   avoids stale registries.
- *
- * Usage: /extensions
+ * Toggles are staged while the list is open and written on Esc - Esc applies, there
+ * is no cancel or confirm. Disabling writes a `-path` force-exclude; enabling just
+ * drops that exclusion again, since extensions are on by default. A successful write
+ * reloads the session, and nothing is cached: the list is resolved from settings plus
+ * the filesystem on every open.
  */
 
 import {
@@ -150,9 +138,8 @@ function packageEntryDetail(path: string, baseDir: string): string {
 }
 
 /**
- * Pattern written to settings.json. Exact `+path` / `-path` entries match either
- * the path relative to the settings base dir or an absolute path, so prefer the
- * relative form to keep settings readable.
+ * Pattern written to settings.json. `+path` / `-path` match relative to the
+ * settings base dir or absolute, so prefer the relative form.
  */
 function settingPattern(path: string, baseDir: string): string {
 	const rel = toPosix(relative(baseDir, path));
@@ -161,10 +148,9 @@ function settingPattern(path: string, baseDir: string): string {
 }
 
 /**
- * True when an override entry (`+path` / `-path` / `!path`) refers to exactly this file.
- * Plain entries are deliberately left alone: they are what makes an explicitly-listed
- * extension discoverable at all, so removing one on disable would hide it from this list
- * (a force-exclude already wins over a plain include). Never matches globs.
+ * True when an override entry (`+path` / `-path` / `!path`) refers to this file.
+ * Plain entries are left alone: they make an explicitly listed extension
+ * discoverable, and a force-exclude already wins over them.
  */
 function overrideTargetsPath(entry: string, path: string, baseDir: string): boolean {
 	if (!/^[!+-]/.test(entry)) return false;
@@ -345,10 +331,8 @@ function buildGroups(rows: ExtensionRow[]): Group[] {
 }
 
 /**
- * Search text for one row. Only the name plus the scope word is searched: fuzzy
- * matching is subsequence-based, so longer text (full paths) would match almost
- * any query. Package rows include the shortened package name, so searching by
- * package works too.
+ * Search text for one row: the name plus the scope word. Fuzzy matching is
+ * subsequence-based, so longer text (paths) would match almost anything.
  */
 function rowSearchText(row: ExtensionRow): string {
 	return `${row.name} ${scopeLabel(row.scope)}`;

@@ -4,6 +4,6 @@ return {
     audible_bell = 'Disabled',
     enable_kitty_keyboard = true,
 
-    -- keep config updated automatically while reconfiguring, remember to comment this out when configuration is done
+    -- reload on save while tuning; comment out when done
     automatically_reload_config = true
 }

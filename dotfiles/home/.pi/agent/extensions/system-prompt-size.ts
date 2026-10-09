@@ -1,17 +1,11 @@
 /**
  * System prompt size
  *
- * Shows the size of the effective system prompt as a startup widget and reports a
- * per-source breakdown via `/prompt-size`.
+ * Startup widget with the size of the effective prompt; `/prompt-size` adds a
+ * per-source breakdown that mirrors `buildSystemPromptSections()` (pi 1.0.4).
  *
- * The widget recomputes the size on every render instead of snapshotting it in
- * `session_start`: pi rebuilds the base prompt after the `session_start` handlers
- * finish (late tool registration, `prepareLoadout`, extension-discovered resources),
- * so the prompt at handler time is not the prompt the model receives. A short timer
- * forces one repaint after that bookkeeping settles.
- *
- * The command mirrors `buildSystemPromptSections()` (pi 1.0.4) for the variable
- * sections so the reported parts add up to the measured total.
+ * Measured on every render, not at `session_start`: pi rebuilds the base prompt
+ * after those handlers run, so a snapshot there would be stale.
  */
 
 import {
@@ -66,9 +60,8 @@ function resolveSkillReadTool(options: BuildSystemPromptOptions): string | undef
 }
 
 /**
- * Sizes of the sections pi builds from options. Pi's own boilerplate (preamble, tools,
- * rules, docs and the section wrappers) stays in `generated`, which is measured as the
- * remainder of the actual prompt so the listed sources always add up to the total.
+ * Sizes of the sections pi builds from options. Its own boilerplate stays in
+ * `generated`, measured as the remainder, so the parts add up to the total.
  */
 function getPromptSections(prompt: string, options: BuildSystemPromptOptions) {
 	const contextFiles = options.contextFiles ?? [];

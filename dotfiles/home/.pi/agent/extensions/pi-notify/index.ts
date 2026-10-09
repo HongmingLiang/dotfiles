@@ -1,26 +1,18 @@
 /**
- * Pi notify.
+ * Pi notify
  *
- * Desktop notifications for the two moments where Pi is waiting on you:
+ * Desktop notifications for the two moments pi waits on you: a blocking UI prompt
+ * (approval, question, password) and a settled run (nothing queued, retrying or
+ * compacting).
  *
- * - a blocking extension UI prompt appears (approval, question, password, ...)
- * - a run settles (no retry, compaction, or queued continuation will follow)
+ * The payload is a terminal escape sequence. In tmux it goes through the passthrough
+ * envelope, and a one-shot `client-focus-in` hook jumps back to the firing pane; the
+ * notification is dropped while you already operate that pane (copy-mode open, or
+ * input since it was armed). Content stays terse - state and kind of input only -
+ * because it lingers in the OS notification center.
  *
- * The notification is a terminal escape sequence, so it is only as good as the
- * terminal in front of it. Inside tmux the sequence goes through the
- * passthrough envelope, and a one-shot `client-focus-in` hook jumps back to the
- * pane that fired it once the terminal window regains focus. A pending
- * notification is dropped when tmux reports that you are already operating the
- * pane: scrollback (copy-mode) is open, or keys/mouse arrived while it was
- * pending. Those keystrokes never reach Pi, so tmux itself has to answer that
- * question.
- *
- * Content is deliberately terse: state and kind of input wanted, never the
- * prompt text. Notifications linger in the OS notification center, so the
- * payload stays free of commands, paths, and other session details.
- *
- * Config: `notify.json` next to this file (see DEFAULT_CONFIG). `/notify`
- * shows the effective values, `/notify test` renders every variant.
+ * Config: `notify.json` next to this file (see DEFAULT_CONFIG); `/notify` shows the
+ * effective values, `/notify test` renders every variant.
  */
 
 import { execFile } from "node:child_process";
@@ -58,8 +50,7 @@ export interface Config {
 	/** Wait this long after a blocking prompt appears before notifying. */
 	promptDelayMs: number;
 	/**
-	 * Wait this long after a run settles before notifying. Nothing is blocked
-	 * here, so this one is deliberately the longer of the two.
+	 * Delay after a run settles. Nothing is blocked here, so this is the longer wait.
 	 */
 	settledDelayMs: number;
 	/** Tools whose prompts are worth a notification, by exact name. */
@@ -67,11 +58,9 @@ export interface Config {
 	/** Tools that never notify, by exact name. Checked before everything else. */
 	muteTools: string[];
 	/**
-	 * Fallback for tools whose names cannot be enumerated (new packages, MCP
-	 * tools). A name matches when it starts with `startsWith` once `-` and `_`
-	 * are removed, so `ask_user_question`, `ask-user-question` and
-	 * `AskUserQuestion` all match `ask` while `task_list` does not. First match
-	 * in the array wins.
+	 * Fallback for tool names that cannot be enumerated (new packages, MCP tools).
+	 * Matching removes `-`/`_` first, so `ask_user_question` and `AskUserQuestion` both
+	 * match `ask` while `task_list` does not. First match wins.
 	 */
 	notifyToolPatterns: ToolPattern[];
 	/** What to do with prompts that cannot be tied to a tool. */
@@ -79,9 +68,8 @@ export interface Config {
 	/** Display label overrides, by exact lower-cased tool name. */
 	labels: Record<string, string>;
 	/**
-	 * Append a snippet of your latest prompt, so the notification says which
-	 * situation it belongs to. Truncated, and it lands in the OS notification
-	 * center, which keeps history.
+	 * Append a snippet of your latest prompt, so the notification says which situation
+	 * it belongs to. Truncated; it lands in the OS notification center.
 	 */
 	showPrompt: boolean;
 	/** Terminal protocol, or "auto" to detect it. */
@@ -198,9 +186,8 @@ function sendWindowsToast(title: string, body: string): void {
 }
 
 /**
- * The program that actually draws the notification. Inside tmux the pane env
- * says `TERM_PROGRAM=tmux`, and the client's value only survives in tmux's
- * global environment.
+ * Draws the notification. In tmux the pane env sets `TERM_PROGRAM=tmux`, and the
+ * client's own value only survives in tmux's global environment.
  */
 async function terminalProgram(): Promise<string> {
 	const raw = (process.env.TERM_PROGRAM ?? "").trim().toLowerCase();
@@ -270,9 +257,8 @@ function tmux(args: string[]): Promise<string> {
 
 /** Query session/window/pane fresh: indices change, so labels are read live. */
 /**
- * Human-readable target, e.g. `dotfiles · 1:nvim · pane:1`. The window name is
- * only meaningful when it was set by hand: tmux's `automatic-rename` names
- * windows after the running command.
+ * Human-readable target, e.g. `dotfiles · 1:nvim · pane:1`. The window name only
+ * means something when set by hand; `automatic-rename` names it after the command.
  */
 export function formatTargetLabel(
 	session: string,
@@ -349,9 +335,9 @@ export function buildFocusHookCommand(target: TmuxTarget): string {
 }
 
 /**
- * Arm a one-shot hook that switches back to this pane when the client regains
- * focus. Clicking an OSC notification cannot carry an identity, so the focus
- * event is the only signal available. Later notifications overwrite the hook.
+ * Arm a one-shot hook that switches back to this pane on the next client focus.
+ * Clicking an OSC notification cannot carry an identity, so focus is the only
+ * signal. Later notifications overwrite the hook.
  */
 async function armFocusHook(target: TmuxTarget): Promise<void> {
 	if (await isVisiblePane()) return;
@@ -404,10 +390,9 @@ export interface TmuxActivity {
 }
 
 /**
- * What tmux knows about your grip on the pane. `client_activity` is input
- * only — output does not touch it — so it is the signal for "someone is
- * operating the terminal right now". Focus changes are input too, hence the
- * `focused` guard: the focus-out that follows you leaving must not count.
+ * What tmux knows about your grip on the pane. `client_activity` counts input only,
+ * so it means "someone is operating the terminal now"; focus changes are input too,
+ * hence the `focused` guard.
  */
 export async function queryTmuxActivity(): Promise<TmuxActivity | undefined> {
 	const pane = process.env.TMUX_PANE;
@@ -439,10 +424,9 @@ export async function queryTmuxActivity(): Promise<TmuxActivity | undefined> {
 }
 
 /**
- * Why a pending notification should stay silent: scrollback is open in this
- * pane, or keys/mouse arrived while it was pending. A client that reports
- * focus but does not have it is away, so its last input — often the focus-out
- * itself — must not count. Exported for tests.
+ * Why a pending notification stays silent: copy-mode is open in this pane, or
+ * keys/mouse arrived since it was armed. A client that reports focus but does not
+ * have it is away, so its last input must not count. Exported for tests.
  */
 export function activeReason(state: TmuxActivity, scheduledAtMs: number): "copy-mode" | "input" | undefined {
 	if (state.paneInMode) return "copy-mode";
@@ -553,15 +537,9 @@ function normalizeToolName(toolName: string): string {
 }
 
 /**
- * Does this tool ask the user something? Rule order, first hit wins:
- *
- *   1. `muteTools` — exact deny, always silent
- *   2. `notifyTools` — exact allow
- *   3. `notifyToolPatterns` — prefix match after `-`/`_` removal, in array order
- *   4. otherwise silent
- *
- * `labels` overrides the display label for an exact tool name, whichever rule
- * matched it.
+ * Does this tool ask the user something? First hit wins: `muteTools` (exact deny),
+ * `notifyTools` (exact allow), `notifyToolPatterns` (prefix after `-`/`_` removal),
+ * otherwise silent. `labels` overrides the label for an exact tool name.
  */
 export function classifyTool(toolName: string, settings: Config): { notify: boolean; label?: string; reason: string } {
 	const name = toolName.toLowerCase();
@@ -587,10 +565,9 @@ export function classifyTool(toolName: string, settings: Config): { notify: bool
 }
 
 /**
- * Decide whether a blocking prompt deserves a notification, and how to label
- * it. The prompt event carries no source, so it is correlated with the tools
- * currently executing: one shared label wins, anything ambiguous falls back to
- * the prompt kind rather than guessing wrong.
+ * Decide whether a blocking prompt deserves a notification, and how to label it.
+ * The prompt event carries no source, so it is correlated with the tools running:
+ * one shared label wins, anything ambiguous falls back to the prompt kind.
  */
 export function classifyPrompt(kind: string, tools: InFlightTool[], settings: Config): PromptDecision {
 	const sorted = [...tools].sort((a, b) => b.startedAt - a.startedAt);
