@@ -2,5 +2,7 @@
   "tui.altScreen.previousPrompt": ["ctrl+shift+up", "alt+u"],
   "tui.altScreen.nextPrompt": ["ctrl+shift+down", "alt+d"],
   "app.model.select": ["alt+m", "ctrl+l"],
-  "app.session.resume": "alt+s"
+  "app.session.resume": "alt+s",
+  "tui.altScreen.top": ["home", "ctrl+home"],
+  "tui.altScreen.bottom": ["end", "ctrl+end"]
 }
