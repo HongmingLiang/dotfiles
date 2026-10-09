@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# SSH host picker.
-# Internal: use the fzf look & feel defined by FZF_DEFAULT_OPTS, add what this
-# picker is about (host names, resolved target preview, key hints).
-#
+# fssh: fuzzy-pick a host from ~/.ssh/config and connect.
 __fssh_usage() {
   cat << 'EOF'
 usage: fssh [host] [ssh options...]
@@ -26,6 +23,23 @@ __fssh_pick() {
     --bind='result:transform-list-label:if [ -z "$FZF_QUERY" ]; then echo " $FZF_MATCH_COUNT hosts "; else echo " $FZF_MATCH_COUNT matches for [$FZF_QUERY] "; fi' \
     --bind='focus:transform-preview-label:printf " ssh -G %s " {}' \
     --preview="ssh -G {} 2>/dev/null | awk '/^(hostname|user|port|proxyjump|identityfile) / {printf \"\\033[1;35m%-13s\\033[0m %s\\n\", \$1, \$2}'"
+}
+
+# Internal: run an interactive command with a cooked terminal.
+# `bind -x` leaves the tty raw (-icanon -echo), and ssh copies the local tty
+# modes to the remote pty, which would leave the login session without echo.
+__fssh_with_cooked_tty() {
+  local state
+
+  if [ -t 0 ] && state=$(stty -g 2> /dev/null); then
+    stty icanon echo icrnl 2> /dev/null
+    "$@"
+    local rc=$?
+    stty "$state" 2> /dev/null
+    return "$rc"
+  fi
+
+  "$@"
 }
 
 # Internal: list every Host alias from the ssh client config (wildcards filtered).
@@ -72,7 +86,7 @@ fssh() {
   fi
   [ -n "$host" ] || return 0
 
-  ssh "${ssh_opts[@]}" "$host"
+  __fssh_with_cooked_tty ssh "${ssh_opts[@]}" "$host"
 }
 
 # Tab-complete host aliases: `fssh <TAB>`

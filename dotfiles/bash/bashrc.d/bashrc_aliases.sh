@@ -8,7 +8,11 @@ alias so='source'
 alias sobash='source ~/.bashrc'
 alias soprofile='source ~/.profile'
 alias sovenv='source .venv/bin/activate'
-bind -x '"\C-x\C-b": source ~/.bashrc && echo "source ~/.bashrc"'
+# Reload the shell config: Ctrl-X Ctrl-B.
+# A readline macro, not `bind -x`: re-sourcing from the raw tty of a key-bound
+# command makes starship's PS0/DEBUG hooks leak bytes before the next command.
+# \C-a\C-k clears the current line first (it goes to the kill ring).
+bind '"\C-x\C-b": "\C-a\C-ksource ~/.bashrc\C-m"'
 
 # clear screen
 alias clr='clear'
