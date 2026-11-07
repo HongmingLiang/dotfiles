@@ -8,8 +8,9 @@
  *
  * On top of the frame, the calls between two pieces of assistant text share
  * one summary line (`▾ 5 calls · bash×3 · thinking×2 · 1.2s`) and one row per
- * call. Rows start open; clicking the summary folds them, ctrl+o opens every
- * call's framed box, and ctrl+t opens every thinking body. A step that only
+ * call. Rows start open; a group over 20 rows starts folded. Clicking the
+ * summary toggles them, ctrl+o opens every call's framed box, and ctrl+t opens
+ * every thinking body. A step that only
  * thinks and calls tools contributes a `thinking` row instead of pi's
  * `Thinking...` label.
  *

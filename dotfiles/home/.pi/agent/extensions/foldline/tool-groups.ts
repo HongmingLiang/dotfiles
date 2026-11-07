@@ -1,7 +1,8 @@
 /**
  * Tool and thinking folding, Claude-Code style: the calls between two pieces of
  * assistant text (or a user message) share one header and a row per call. Rows
- * start open; the header folds them, and ctrl+o opens every call's box.
+ * start open, but a group with more than AUTO_COLLAPSE_ROWS rows starts folded;
+ * the header unfolds them, and ctrl+o opens every call's box.
  *
  *   1  ▾ 4 calls · bash×3 read×1 · thinking×2 · 1.2s   default: one row per call
  *      │ ✓ thinking  check which assertion failed            a step's thinking
@@ -77,6 +78,8 @@ export interface CarrierPlan {
 
 interface Group {
 	level: GroupLevel;
+	/** The reader chose a level; automatic size folding must not override it. */
+	manual: boolean;
 	members: GroupMemberLike[];
 	/** The thinking runs each carrier contributed, for the header count. */
 	thoughts: number;
@@ -103,6 +106,8 @@ export const RUNNING_ROW_DELAY_MS = 1000;
 
 /** Tools that never fold: their box is the point. */
 const ALWAYS_SHOW = new Set(["edit", "write"]);
+/** A larger row list starts folded so it cannot take over the transcript. */
+const AUTO_COLLAPSE_ROWS = 20;
 
 let groupingEnabled = true;
 /** Every group in this session, so ctrl+t can reveal the ones with thinking. */
@@ -147,6 +152,7 @@ export function needsLeadingBlank(): boolean {
 function newGroup(): Group {
 	const group: Group = {
 		level: 1,
+		manual: false,
 		members: [],
 		thoughts: 0,
 		liveCarriers: new Set(),
@@ -159,6 +165,22 @@ function newGroup(): Group {
 }
 
 /**
+ * A group's row list is what takes over the screen, not the size of one box.
+ * Once it grows past AUTO_COLLAPSE_ROWS, close it unless the reader already
+ * chose a level for it. Tools and thinking runs both count as rows.
+ */
+function maybeAutoCollapse(group: Group): void {
+	if (group.manual || group.members.length === 0) return;
+	const rows = group.members.length + group.thoughts;
+	if (rows <= AUTO_COLLAPSE_ROWS || group.level === 0) return;
+	group.level = 0;
+	for (const member of group.members) {
+		if (member.expanded) member.setExpanded(false);
+	}
+	requestGroupRender();
+}
+
+/**
  * ctrl+t is a global "show thinking" action: a collapsed group must not hide
  * the bodies it just opened. Open only groups that actually have thinking.
  */
@@ -167,6 +189,7 @@ export function openThinkingGroups(): void {
 	for (const group of allGroups) {
 		if (group.level === 0 && group.thoughts > 0) {
 			group.level = 1;
+			group.manual = true;
 			changed = true;
 		}
 	}
@@ -231,6 +254,7 @@ function attachRuns(group: Group, component: object, runs: readonly string[], li
 	}
 	if (live) group.liveCarriers.add(component);
 	else if (group.liveCarriers.delete(component) && group.headerDrawn) requestGroupRender();
+	maybeAutoCollapse(group);
 }
 
 /**
@@ -359,6 +383,7 @@ export function planFor(tool: GroupMemberLike, now = Date.now()): GroupPlan {
 	// clears this pointer first, so every member must restore it, not just the
 	// frame that first joined the group.
 	lastMemberGroup = group;
+	maybeAutoCollapse(group);
 
 	const first = group.members[0] === tool;
 	const header = first && (group.level === 0 || group.headerCarrier === null)
@@ -439,13 +464,17 @@ export function groupSummaryFor(component: object): GroupSummary | undefined {
 export function noteSetExpanded(tool: GroupMemberLike, expanded: boolean): void {
 	const group = groupOfTool.get(tool);
 	if (!group) return;
-	if (expanded) group.level = 1;
+	if (expanded) {
+		group.manual = true;
+		group.level = 1;
+	}
 }
 
 /** A click on the summary: fold the rows and every box, or bring the rows back. */
 export function toggleGroup(component: object): void {
 	const group = groupFor(component);
 	if (!group) return;
+	group.manual = true;
 	if (group.level === 1) {
 		group.level = 0;
 		for (const member of group.members) {
