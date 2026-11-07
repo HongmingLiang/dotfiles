@@ -18,6 +18,7 @@ import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works
 
 export type EditPreviewTheme = {
 	fg(color: string, text: string): string;
+	bold?(text: string): string;
 	inverse?(text: string): string;
 };
 
@@ -338,9 +339,15 @@ function renderCode(
 	language: string | undefined,
 	emphasis: Emphasis | undefined,
 ): string {
-	const text = highlight(sanitize(line.text));
-	const styled = language ? text : theme.fg(codeColor(line.kind), text);
-	return emphasize(styled, emphasis, theme);
+	const text = sanitize(line.text);
+	// Context is for orientation, not a second copy of the file's syntax
+	// colors. Keep it dim. Removed code is gone: red is the message, so it does
+	// not get a second layer of syntax colors; added code is the new file and
+	// stays highlighted.
+	if (line.kind === "context") return theme.fg("toolDiffContext", text);
+	if (line.kind === "remove") return theme.fg(codeColor(line.kind), text);
+	if (!language) return theme.fg(codeColor(line.kind), text);
+	return emphasize(highlight(text), emphasis, theme);
 }
 
 function marker(kind: LineKind): string {
@@ -431,9 +438,9 @@ function splitHeader(
 	rightWidth: number,
 	theme: EditPreviewTheme,
 ): string {
-	const label = (text: string, width: number) =>
-		padToWidth(theme.fg("muted", text), width);
-	return `${label("old", leftWidth)}${theme.fg("muted", SEPARATOR)}${label("new", rightWidth)}`;
+	const label = (text: string, color: string, width: number) =>
+		padToWidth(theme.fg(color, theme.bold?.(text) ?? text), width);
+	return `${label("old", "toolDiffRemoved", leftWidth)}${theme.fg("muted", SEPARATOR)}${label("new", "toolDiffAdded", rightWidth)}`;
 }
 
 function renderSplit(
