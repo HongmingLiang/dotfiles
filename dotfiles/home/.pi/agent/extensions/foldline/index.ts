@@ -20,7 +20,9 @@
  */
 
 import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
+import { stripVTControlCharacters } from "node:util";
 import {
 	AssistantMessageComponent,
 	getAgentDir,
@@ -52,10 +54,13 @@ import {
 import {
 	formatGroupLine,
 	formatThoughtRow,
+	formatDuration,
 	formatToolRow,
 	groupGutter,
 	GUTTER_CELLS,
 	spinnerFrame,
+	summarizeArgs,
+	summarizeResult,
 	type ColorTheme,
 	type ToolStatus,
 } from "./tool-summary.ts";
@@ -100,6 +105,8 @@ type ToolExecutionLike = {
 	__foldlineBody?: BodyGeometry;
 	__foldlineHits?: FoldlineHit[];
 	__foldlineGrouped?: boolean;
+	/** The box body is ours (write preview), so clicks must not be translated. */
+	__foldlineCustom?: boolean;
 };
 
 type Render = (this: ToolExecutionLike, width: number) => string[];
@@ -286,11 +293,109 @@ function clipToWidth(line: string, width: number, ellipsis = "…"): string {
 
 // ── Tool rows and boxes ─────────────────────────────────────────────────────
 
-/** The normal, unframed-by-group box: one rounded frame around pi's own rows. */
+/** `~` for a home path keeps a border label about the file, not the user. */
+function shortenHome(path: string): string {
+	const home = homedir();
+	return home && path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path;
+}
+
+/** The border title on a standalone box: `edit ~/app.ts  +4/-2`. */
+function standaloneLabel(tool: ToolExecutionLike, status: ToolStatus, theme: ColorTheme): string {
+	const name = tool.toolName;
+	if (!name) return "";
+	const args = shortenHome(summarizeArgs(name, tool.args, tool.result));
+	const note = status === "running" ? "" : summarizeResult(name, tool.result, tool.args);
+	const duration = status === "running" ? "" : formatDuration(tool.result?.durationMs);
+	const tailPlain = [note, duration].filter(Boolean).join(" · ");
+	const parts = [theme.fg("toolTitle", name)];
+	if (args) parts.push(theme.fg("toolOutput", args));
+	const tail = tailPlain ? `  ${theme.fg("muted", tailPlain)}` : "";
+	return ` ${parts.join(" ")}${tail} `;
+}
+
+/** Visual lines of a written file shown while the box is folded. */
+const WRITE_PREVIEW_LINES = 10;
+const WRITE_TAB = "   ";
+const CONTROL_CHARS = /[\u0000-\u0008\u000b-\u001f\u007f]/g;
+
+interface WritePreview {
+	content: string;
+	lines: string[];
+}
+
+const writePreviews = new WeakMap<object, WritePreview>();
+
+/** Plain content preview for a successful write; the border carries the path. */
+function writePreviewLines(tool: ToolExecutionLike, width: number, theme: ColorTheme): string[] | undefined {
+	if (tool.toolName !== "write" || tool.isPartial || tool.result?.isError) return undefined;
+	const args = tool.args as { content?: unknown } | undefined;
+	if (!args || typeof args.content !== "string") return undefined;
+	const raw = args.content;
+
+	let preview = writePreviews.get(args);
+	if (!preview || preview.content !== raw) {
+		const content = raw.replace(/\r/g, "").replace(/\t/g, WRITE_TAB).replace(CONTROL_CHARS, " ");
+		const lines = content.split("\n");
+		while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+		preview = { content: raw, lines };
+		writePreviews.set(args, preview);
+	}
+
+	const total = preview.lines.length;
+	const budget = tool.expanded ? total : Math.min(WRITE_PREVIEW_LINES, total);
+	const max = Math.max(1, width - 2);
+	const clip = (line: string) => truncateToWidth(line, max, "…");
+	const shown = preview.lines.slice(0, budget).map((line) => clip(` ${theme.fg("toolOutput", line)}`));
+	if (!tool.expanded && total > shown.length) {
+		const more = total - shown.length;
+		shown.push(
+			clip(` ${theme.fg("muted", `... (${more} more ${more === 1 ? "line" : "lines"}, ${total} total, ctrl+o to expand)`)}`),
+		);
+	}
+	// One blank row on each side keeps the body from touching the border,
+	// matching the padding pi's own tool boxes use.
+	return ["", ...(shown.length > 0 ? shown : [" "]), ""];
+}
+
+/**
+ * pi's read/write/edit renderers start with the tool title (`read`,
+ * `write <path>`, `edit <path>`). The border now carries that title, so drop
+ * the duplicate while keeping the original row count for click translation.
+ */
+function stripInnerTitle(tool: ToolExecutionLike, lines: string[]): { lines: string[]; dropped: number } {
+	const name = tool.toolName;
+	if (!name) return { lines, dropped: 0 };
+	// A background-filled padding row is still blank for this scan: only the
+	// tool's own title text matters, not the box styling above it.
+	const blank = (line: string) => stripVTControlCharacters(line).trim() === "";
+	let index = 0;
+	while (index < lines.length && blank(lines[index])) index++;
+	if (index >= lines.length) return { lines, dropped: 0 };
+	const plain = stripVTControlCharacters(lines[index]).trim();
+	// A bare tool name is a title for every built-in (`ls`, `grep`, `find`, …).
+	// read/write/edit also put the path on that line. Avoid the generic
+	// fallback's `read path="…"` / wrapped `edit path="…" oldText="…"` lines:
+	// dropping half of those would mangle the remaining rows.
+	const isTitle =
+		plain === name ||
+		(name === "read" && plain.startsWith("read ") && !plain.includes("=")) ||
+		/^(?:edit|write)\s+\S+$/.test(plain);
+	if (!isTitle) return { lines, dropped: 0 };
+	let end = index + 1;
+	if (end < lines.length && blank(lines[end])) end++;
+	return { lines: [...lines.slice(0, index), ...lines.slice(end)], dropped: end - index };
+}
+
+/**
+ * A standalone box: a pinned tool, or every tool when grouping is off. The
+ * border carries the title; a successful write uses our compact preview so
+ * pi's inner `write <path>` title does not repeat it.
+ */
 function renderStandalone(tool: ToolExecutionLike, width: number, patch: FoldlinePatch): string[] {
 	tool.__foldlineHits = [];
 	tool.__foldlineBody = undefined;
 	tool.__foldlineGrouped = false;
+	tool.__foldlineCustom = false;
 
 	// Keep the spacer owned by ToolExecutionComponent outside the frame. The
 	// remaining lines are the actual tool call/result content.
@@ -298,21 +403,36 @@ function renderStandalone(tool: ToolExecutionLike, width: number, patch: Foldlin
 	if (rawLines.length === 0) return [];
 
 	const leadingSpacer = rawLines[0] === "" ? [rawLines[0]] : [];
-	const contentLines = leadingSpacer.length > 0 ? rawLines.slice(1) : rawLines;
+	const status = getStatus(tool, patch);
+	const theme = (patch.theme ?? FALLBACK_THEME) as ColorTheme;
+	// A successful write gets our own compact preview: pi's native box repeats
+	// the path as an inner title, which the border already carries.
+	const custom = status === "running" || tool.result?.isError
+		? undefined
+		: writePreviewLines(tool, width, theme);
+	const sourceLines = custom ?? (leadingSpacer.length > 0 ? rawLines.slice(1) : rawLines);
+	const stripped = custom === undefined ? stripInnerTitle(tool, sourceLines) : { lines: sourceLines, dropped: 0 };
+	const contentLines = stripped.lines;
 	if (contentLines.length === 0) return leadingSpacer;
 
-	const status = getStatus(tool, patch);
-	const framed = frameToolLines(contentLines, width, borderColorFor(status), patch.theme);
+	const framed = frameToolLines(
+		contentLines,
+		width,
+		borderColorFor(status),
+		patch.theme,
+		standaloneLabel(tool, status, theme),
+	);
 	const contentTop = leadingSpacer.length + 1;
 
 	tool.__foldlineBody = {
 		contentTop,
 		bottom: contentTop + contentLines.length - 1,
-		sourceStart: leadingSpacer.length,
+		sourceStart: leadingSpacer.length + stripped.dropped,
 		sourceWidth: Math.max(1, width - 2),
-		sourceHeight: contentLines.length,
+		sourceHeight: sourceLines.length,
 		left: 1,
 	};
+	tool.__foldlineCustom = custom !== undefined;
 
 	return [...leadingSpacer, ...framed];
 }
@@ -363,19 +483,23 @@ function renderGrouped(tool: ToolExecutionLike, width: number, patch: FoldlinePa
 		const boxWidth = Math.max(4, width - GUTTER_CELLS - 1);
 		const rawLines = patch.originalRender.call(tool, Math.max(1, boxWidth - 2));
 		const sourceStart = rawLines[0] === "" ? 1 : 0;
-		const contentLines = rawLines.slice(sourceStart);
+		const rawContent = rawLines.slice(sourceStart);
+		const stripped = stripInnerTitle(tool, rawContent);
+		const contentLines = stripped.lines;
 
 		if (contentLines.length > 0) {
 			const status = getStatus(tool, patch);
-			const framed = frameToolLines(contentLines, boxWidth, borderColorFor(status), patch.theme);
+			// The row above carries args and timing; the border carries the name.
+			const boxLabel = ` ${theme.fg("toolTitle", tool.toolName ?? "tool")} `;
+			const framed = frameToolLines(contentLines, boxWidth, borderColorFor(status), patch.theme, boxLabel);
 			const framedTop = lines.length;
 			for (const line of framed) lines.push(`${groupGutter(theme)} ${line}`);
 			body = {
 				contentTop: framedTop + 1,
 				bottom: framedTop + framed.length - 2,
-				sourceStart,
+				sourceStart: sourceStart + stripped.dropped,
 				sourceWidth: Math.max(1, boxWidth - 2),
-				sourceHeight: contentLines.length,
+				sourceHeight: rawContent.length,
 				left: GUTTER_CELLS + 2,
 			};
 		}
@@ -384,6 +508,7 @@ function renderGrouped(tool: ToolExecutionLike, width: number, patch: FoldlinePa
 	tool.__foldlineHits = hits;
 	tool.__foldlineBody = body;
 	tool.__foldlineGrouped = true;
+	tool.__foldlineCustom = false;
 	return lines;
 }
 
@@ -894,10 +1019,18 @@ function installPatch(): FoldlinePatch {
 			}
 		}
 
+		const body = this.__foldlineBody;
+		// Our write preview has no pi layout underneath it: any click on the box
+		// (border included) flips the preview between truncated and full.
+		if (click && this.__foldlineCustom && body && y !== undefined && y >= body.contentTop - 1 && y <= body.bottom + 1) {
+			asPointer(() => this.setExpanded?.(!this.expanded));
+			this.ui?.requestRender?.();
+			return { handled: true };
+		}
+
 		// Inside the box, translate back into the coordinates pi's own rows were
 		// rendered at; whatever the content does not take (a click on the border,
 		// or on a row no sub-component owns) toggles the box.
-		const body = this.__foldlineBody;
 		if (body && y !== undefined && typeof event?.x === "number" && y >= body.contentTop && y <= body.bottom) {
 			const translated = {
 				...event,
