@@ -1,7 +1,7 @@
 /**
  * The edit box's body: pi's numbered diff string, rebuilt as a compact preview.
  *
- * The outer frame still comes from index.ts. This module only turns
+ * The outer frame comes from frame.ts. This module only turns
  * `details.diff` (or the renderer's live preview) into body rows:
  *
  *   - wide boxes use `old | new` panes, narrow boxes stay unified;
@@ -15,6 +15,17 @@
 
 import { getLanguageFromPath, highlightCode } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import {
+	buildSplitRows,
+	isDiffLine,
+	lineNumberWidth,
+	parseDiff,
+	type DiffEntry,
+	type DiffLine,
+	type DiffMeta,
+	type LineKind,
+	type SplitRow,
+} from "./edit-diff.ts";
 
 export type EditPreviewTheme = {
 	fg(color: string, text: string): string;
@@ -47,32 +58,7 @@ const SEPARATOR_CELLS = visibleWidth(SEPARATOR);
 const TAB = "   ";
 const CONTROL_CHARS = /[\u0000-\u0008\u000b-\u001f\u007f]/g;
 
-type LineKind = "add" | "remove" | "context";
-
-interface DiffLine {
-	kind: LineKind;
-	oldNumber: number | null;
-	newNumber: number | null;
-	text: string;
-}
-
-interface DiffMeta {
-	kind: "meta" | "skip";
-	text: string;
-}
-
-type DiffEntry = DiffLine | DiffMeta;
 type DiffSide = "left" | "right";
-
-function isDiffLine(entry: DiffEntry): entry is DiffLine {
-	return entry.kind !== "meta" && entry.kind !== "skip";
-}
-
-interface SplitRow {
-	left?: DiffLine;
-	right?: DiffLine;
-	meta?: DiffMeta;
-}
 
 interface Emphasis {
 	start: number;
@@ -119,144 +105,6 @@ function pathFor(tool: EditPreviewTool): string {
 
 function sanitize(text: string): string {
 	return text.replace(CONTROL_CHARS, " ").replace(/\t/g, TAB);
-}
-
-function parseNumber(value: string | undefined): number | null {
-	if (!value || !value.trim()) return null;
-	const parsed = Number.parseInt(value.trim(), 10);
-	return Number.isFinite(parsed) ? parsed : null;
-}
-
-function isMetaLine(raw: string): DiffMeta | undefined {
-	if (raw.startsWith("diff --git ") || raw.startsWith("index ")) {
-		return { kind: "meta", text: raw };
-	}
-	if (raw.startsWith("--- ") || raw.startsWith("+++ ")) {
-		return { kind: "meta", text: raw };
-	}
-	if (raw.startsWith("@@")) {
-		return { kind: "meta", text: raw };
-	}
-	return undefined;
-}
-
-/**
- * Parse pi's numbered diff (`- 12 text`, `+ 12 text`, `  12 text`) and the
- * unnumbered fallback (`-text`, `+text`, ` text`). The cursors only compute
- * the other side's line number for context rows.
- */
-function parseDiff(diff: string): DiffEntry[] | undefined {
-	const entries: DiffEntry[] = [];
-	let delta = 0;
-
-	for (const raw of diff.replace(/\r/g, "").split("\n")) {
-		if (!raw) continue;
-
-		const meta = isMetaLine(raw);
-		if (meta) {
-			entries.push(meta);
-			continue;
-		}
-
-		const numbered = /^([+\- ])(\s*\d+)\s(.*)$/.exec(raw);
-		const simple = numbered ? null : /^([+\- ])(.*)$/.exec(raw);
-		const match = numbered ?? simple;
-		if (!match) {
-			entries.push({ kind: "meta", text: raw });
-			continue;
-		}
-
-		const marker = match[1] as "+" | "-" | " ";
-		const number = numbered ? parseNumber(match[2]) : null;
-		const text = numbered ? (match[3] ?? "") : (match[2] ?? "");
-
-		if (marker === " ") {
-			if (text.trim() === "...") {
-				entries.push({ kind: "skip", text: "…" });
-				continue;
-			}
-			entries.push({
-				kind: "context",
-				oldNumber: number,
-				newNumber: number === null ? null : number + delta,
-				text,
-			});
-			continue;
-		}
-
-		if (marker === "-") {
-			entries.push({ kind: "remove", oldNumber: number, newNumber: null, text });
-			delta--;
-			continue;
-		}
-
-		entries.push({ kind: "add", oldNumber: null, newNumber: number, text });
-		delta++;
-	}
-
-	return entries.length > 0 ? entries : undefined;
-}
-
-function buildSplitRows(entries: readonly DiffEntry[]): SplitRow[] {
-	const rows: SplitRow[] = [];
-	let index = 0;
-
-	while (index < entries.length) {
-		const entry = entries[index]!;
-		if (!isDiffLine(entry)) {
-			rows.push({ meta: entry });
-			index++;
-			continue;
-		}
-
-		if (entry.kind === "add") {
-			rows.push({ right: entry });
-			index++;
-			continue;
-		}
-		if (entry.kind === "context") {
-			rows.push({ left: entry, right: entry });
-			index++;
-			continue;
-		}
-
-		const removed: DiffLine[] = [];
-		while (index < entries.length) {
-			const candidate = entries[index]!;
-			if (candidate.kind !== "remove") break;
-			removed.push(candidate);
-			index++;
-		}
-
-		const added: DiffLine[] = [];
-		while (index < entries.length) {
-			const candidate = entries[index]!;
-			if (candidate.kind !== "add") break;
-			added.push(candidate);
-			index++;
-		}
-
-		const count = Math.max(removed.length, added.length);
-		for (let pair = 0; pair < count; pair++) {
-			rows.push({
-				...(removed[pair] ? { left: removed[pair] } : {}),
-				...(added[pair] ? { right: added[pair] } : {}),
-			});
-		}
-	}
-
-	return rows;
-}
-
-function lineNumberWidth(entries: readonly DiffEntry[]): number {
-	let width = 2;
-	for (const entry of entries) {
-		if (!isDiffLine(entry)) continue;
-		for (const number of [entry.oldNumber, entry.newNumber]) {
-			if (number !== null) width = Math.max(width, String(number).length);
-		}
-	}
-	return width;
 }
 
 function padToWidth(text: string, width: number): string {
@@ -373,6 +221,21 @@ function renderPrefix(
 	};
 }
 
+function renderWrapped(
+	prefix: { styled: string; plainWidth: number },
+	code: string,
+	width: number,
+	minCodeWidth = 0,
+): string[] {
+	const codeWidth = Math.max(minCodeWidth, width - prefix.plainWidth);
+	const wrapped = codeWidth > 0 ? wrapTextWithAnsi(code, codeWidth) : [""];
+	const rows = wrapped.length > 0 ? wrapped : [""];
+	return rows.map((row, index) => {
+		const lead = index === 0 ? prefix.styled : " ".repeat(prefix.plainWidth);
+		return padToWidth(`${lead}${row}`, width);
+	});
+}
+
 function renderCell(
 	line: DiffLine | undefined,
 	side: DiffSide,
@@ -386,14 +249,8 @@ function renderCell(
 	if (!line) return [" ".repeat(Math.max(0, width))];
 
 	const prefix = renderPrefix(line, side, numberWidth, theme);
-	const codeWidth = Math.max(0, width - prefix.plainWidth);
 	const code = renderCode(line, theme, highlight, language, emphasis);
-	const wrapped = codeWidth > 0 ? wrapTextWithAnsi(code, codeWidth) : [""];
-	const rows = wrapped.length > 0 ? wrapped : [""];
-	return rows.map((row, index) => {
-		const lead = index === 0 ? prefix.styled : " ".repeat(prefix.plainWidth);
-		return padToWidth(`${lead}${row}`, width);
-	});
+	return renderWrapped(prefix, code, width);
 }
 
 function renderMeta(meta: DiffMeta, width: number, theme: EditPreviewTheme): string {
@@ -420,14 +277,8 @@ function renderUnified(
 		}
 
 		const prefix = renderPrefix(entry, entry.kind === "add" ? "right" : "left", numberWidth, theme);
-		const codeWidth = Math.max(1, contentWidth - prefix.plainWidth);
 		const code = renderCode(entry, theme, highlight, language, undefined);
-		const wrapped = wrapTextWithAnsi(code, codeWidth);
-		const rows = wrapped.length > 0 ? wrapped : [""];
-		rows.forEach((row, index) => {
-			const lead = index === 0 ? prefix.styled : " ".repeat(prefix.plainWidth);
-			lines.push(padToWidth(`${lead}${row}`, contentWidth));
-		});
+		lines.push(...renderWrapped(prefix, code, contentWidth, 1));
 	}
 
 	return lines;
@@ -497,17 +348,19 @@ function footer(hidden: number, total: number, width: number, theme: EditPreview
 	return padToWidth(` ${theme.fg("muted", clip(text, Math.max(1, width - 2)))}`, width);
 }
 
-function renderPreview(tool: EditPreviewTool, width: number, theme: EditPreviewTheme): string[] | undefined {
-	const diff = diffFor(tool);
-	if (!diff) return undefined;
-
+function renderPreview(
+	diff: string,
+	path: string,
+	expanded: boolean,
+	width: number,
+	theme: EditPreviewTheme,
+): string[] | undefined {
 	const entries = parseDiff(diff);
 	if (!entries) return undefined;
 
 	const innerWidth = Math.max(1, width - 2);
 	if (innerWidth < MIN_WIDTH) return undefined;
 
-	const path = pathFor(tool);
 	let language: string | undefined;
 	try {
 		language = path ? getLanguageFromPath(path) : undefined;
@@ -517,7 +370,6 @@ function renderPreview(tool: EditPreviewTool, width: number, theme: EditPreviewT
 	const highlight = highlightLineFactory(language);
 	const numberWidth = lineNumberWidth(entries);
 	const rows = buildSplitRows(entries);
-	const expanded = tool.expanded === true;
 
 	const body =
 		width >= SPLIT_MIN_WIDTH
@@ -567,7 +419,7 @@ export function editPreviewLines(
 
 	let lines: string[] | undefined;
 	try {
-		lines = renderPreview(tool, width, theme);
+		lines = renderPreview(diff, path, expanded, width, theme);
 	} catch {
 		lines = undefined;
 	}

@@ -23,21 +23,21 @@
  */
 
 import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
-import { stripVTControlCharacters } from "node:util";
 import {
 	AssistantMessageComponent,
 	getAgentDir,
-	getLanguageFromPath,
-	highlightCode,
 	ToolExecutionComponent,
 	type ExtensionAPI,
 	type Theme,
 } from "@earendil-works/pi-coding-agent";
-import { Container, Spacer, truncateToWidth, Text, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import { truncateToWidth, Text, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { formatBashCallHighlighted } from "./bash-highlighter.ts";
+import { borderColorFor, frameToolLines } from "./frame.ts";
 import { editPreviewLines } from "./edit-preview.ts";
+import { installStatusDedupe } from "./status-dedupe.ts";
+import { standaloneLabel, stripInnerTitle } from "./tool-title.ts";
+import { writePreviewLines } from "./write-preview.ts";
 import {
 	configureGroups,
 	disposeGroupBoundaries,
@@ -62,13 +62,10 @@ import {
 import {
 	formatGroupLine,
 	formatThoughtRow,
-	formatDuration,
 	formatToolRow,
 	groupGutter,
 	GUTTER_CELLS,
 	spinnerFrame,
-	summarizeArgs,
-	summarizeResult,
 	type ColorTheme,
 	type ToolStatus,
 } from "./tool-summary.ts";
@@ -188,97 +185,6 @@ interface ThoughtBody {
 	bottom: number;
 }
 
-const STATUS_DEDUPE = Symbol.for("pi.foldline.status-dedupe");
-const FOLDLINE_STATUS = /^(?:Tool output: (?:expanded|collapsed)|Thinking blocks: (?:hidden|visible))$/;
-
-/**
- * pi's `showStatus` appends a Spacer + ThemedText pair to the chat. Its
- * "already showing this status" check only looks at the last two children, so
- * a ctrl+o/ctrl+t before each new tool appends another pair; every pair renders
- * the latest `lastStatusMessage`, producing a column of identical status lines.
- *
- * Prune older foldline status pairs whenever a new one is added, keeping the
- * just-added pair as the single live status line.
- */
-function isFoldlineStatus(child: unknown): boolean {
-	const candidate = child as { build?: unknown; setText?: unknown; render?: unknown };
-	if (typeof candidate?.build !== "function" || typeof candidate.setText !== "function" || typeof candidate.render !== "function") {
-		return false;
-	}
-	try {
-		const rendered = (candidate.render as (width: number) => string[])(200).join("\n");
-		return FOLDLINE_STATUS.test(stripVTControlCharacters(rendered).trim());
-	} catch {
-		return false;
-	}
-}
-
-function pruneFoldlineStatuses(container: Container, keep: unknown): void {
-	const remove = new Set<unknown>();
-	container.children.forEach((child, index) => {
-		if (child === keep || !isFoldlineStatus(child)) return;
-		remove.add(child);
-		const previous = container.children[index - 1];
-		if (previous instanceof Spacer) remove.add(previous);
-	});
-	if (remove.size === 0) return;
-	container.children = container.children.filter((child) => !remove.has(child));
-}
-
-function installStatusDedupe(): void {
-	const prototype = Container.prototype as unknown as { addChild: (child: unknown) => void; [STATUS_DEDUPE]?: true };
-	if (prototype[STATUS_DEDUPE]) return;
-	const originalAddChild = prototype.addChild;
-	prototype.addChild = function addChildWithStatusDedupe(this: Container, child: unknown): void {
-		originalAddChild.call(this, child);
-		try {
-			if (isFoldlineStatus(child)) pruneFoldlineStatuses(this, child);
-		} catch {
-			// Status cleanup must never take the TUI down with it.
-		}
-	};
-	prototype[STATUS_DEDUPE] = true;
-}
-
-/**
- * Strip background SGR parameters, keep all other styling.
- *
- * theme.bg() emits 48;5;n / 48;2;r;g;b followed by 49, and third-party renderers
- * may mix foreground and background in one SGR, so parse the parameter list
- * instead of deleting a whole escape.
- */
-function removeBackgroundSgr(text: string): string {
-	return text.replace(/\x1b\[([0-9;]*)m/g, (_sequence, rawParams: string) => {
-		const params = rawParams === "" ? [0] : rawParams.split(";").map(Number);
-		const kept: number[] = [];
-
-		for (let i = 0; i < params.length; i++) {
-			const param = params[i];
-
-			// Extended background: 48;5;n or 48;2;r;g;b.
-			if (param === 48) {
-				if (params[i + 1] === 5) i += 2;
-				else if (params[i + 1] === 2) i += 4;
-				continue;
-			}
-
-			// 49 is the default background reset; the 40-47 and 100-107
-			// ranges are the normal and bright background palettes.
-			if (param === 49 || (param >= 40 && param <= 47) || (param >= 100 && param <= 107)) {
-				continue;
-			}
-
-			kept.push(param);
-		}
-
-		return kept.length > 0 ? `\x1b[${kept.join(";")}m` : "";
-	});
-}
-
-function borderColorFor(status: ToolStatus): string {
-	return status === "running" ? "dim" : status === "success" ? "success" : "error";
-}
-
 function getStatus(component: ToolExecutionLike, patch: FoldlinePatch): ToolStatus {
 	// A component reports partial output until the final tool result has been
 	// installed. Prefer that lifecycle state so a result event cannot turn the
@@ -300,175 +206,11 @@ function getStatus(component: ToolExecutionLike, patch: FoldlinePatch): ToolStat
 	return component.result.isError ? "error" : "success";
 }
 
-/**
- * A rounded transparent frame. `label` is already styled and sits in the top
- * border after a `─`: `╭─ thinking ─────╮`.
- */
-function frameToolLines(
-	lines: string[],
-	width: number,
-	colorName: string,
-	theme: Theme | undefined,
-	label?: string,
-): string[] {
-	if (width <= 0) return [];
-	if (width < 2) {
-		return lines.map((line) => truncateToWidth(removeBackgroundSgr(line), Math.max(1, width), ""));
-	}
-
-	const innerWidth = width - 2;
-	const border = (text: string) =>
-		theme?.fg(colorName as Parameters<Theme["fg"]>[0], text) ??
-		(colorName === "error" ? `\x1b[31m${text}\x1b[39m` : `\x1b[38;5;245m${text}\x1b[39m`);
-
-	let top: string;
-	if (label) {
-		const shown = visibleWidth(label) > innerWidth - 3
-			? truncateToWidth(label, Math.max(1, innerWidth - 3), "…")
-			: label;
-		const pad = Math.max(0, innerWidth - 1 - visibleWidth(shown));
-		top = `${border("╭─")}${shown}${border(`${"─".repeat(pad)}╮`)}`;
-	} else {
-		top = border(`╭${"─".repeat(innerWidth)}╮`);
-	}
-	const bottom = border(`╰${"─".repeat(innerWidth)}╯`);
-
-	const body = lines.map((line) => {
-		let content = removeBackgroundSgr(line);
-		if (visibleWidth(content) > innerWidth) {
-			content = truncateToWidth(content, innerWidth, "");
-		}
-		content += " ".repeat(Math.max(0, innerWidth - visibleWidth(content)));
-		return `${border("│")}${content}${border("│")}`;
-	});
-
-	return [top, ...body, bottom];
-}
-
 function clipToWidth(line: string, width: number, ellipsis = "…"): string {
 	return visibleWidth(line) <= width ? line : truncateToWidth(line, width, ellipsis);
 }
 
 // ── Tool rows and boxes ─────────────────────────────────────────────────────
-
-/** `~` for a home path keeps a border label about the file, not the user. */
-function shortenHome(path: string): string {
-	const home = homedir();
-	return home && path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path;
-}
-
-/** The border title on a standalone box: `edit ~/app.ts  +4/-2`. */
-function standaloneLabel(tool: ToolExecutionLike, status: ToolStatus, theme: ColorTheme): string {
-	const name = tool.toolName;
-	if (!name) return "";
-	const args = shortenHome(summarizeArgs(name, tool.args, tool.result));
-	const note = status === "running" ? "" : summarizeResult(name, tool.result, tool.args);
-	const duration = status === "running" ? "" : formatDuration(tool.result?.durationMs);
-	const tailPlain = [note, duration].filter(Boolean).join(" · ");
-	const parts = [theme.fg("toolTitle", name)];
-	if (args) parts.push(theme.fg("toolOutput", args));
-	const tail = tailPlain ? `  ${theme.fg("muted", tailPlain)}` : "";
-	return ` ${parts.join(" ")}${tail} `;
-}
-
-/** Visual lines of a written file shown while the box is folded. */
-const WRITE_PREVIEW_LINES = 10;
-const WRITE_TAB = "   ";
-const CONTROL_CHARS = /[\u0000-\u0008\u000b-\u001f\u007f]/g;
-
-interface WritePreview {
-	content: string;
-	language?: string;
-	sample?: string;
-	lines: string[];
-	/** Highlighted lines, only when the highlighter returned a matching count. */
-	highlighted?: string[];
-}
-
-const writePreviews = new WeakMap<object, WritePreview>();
-
-/** Content preview for a successful write; the border carries the path. */
-function writePreviewLines(tool: ToolExecutionLike, width: number, theme: ColorTheme): string[] | undefined {
-	if (tool.toolName !== "write" || tool.isPartial || tool.result?.isError) return undefined;
-	const args = tool.args as { content?: unknown; path?: unknown; file_path?: unknown } | undefined;
-	if (!args || typeof args.content !== "string") return undefined;
-	const raw = args.content;
-	const path = typeof args.path === "string" ? args.path : typeof args.file_path === "string" ? args.file_path : "";
-	let language: string | undefined;
-	try {
-		language = path ? getLanguageFromPath(path) : undefined;
-	} catch {
-		language = undefined;
-	}
-	const sample = theme.fg("toolTitle", "x");
-
-	let preview = writePreviews.get(args);
-	if (!preview || preview.content !== raw || preview.language !== language || preview.sample !== sample) {
-		const content = raw.replace(/\r/g, "").replace(/\t/g, WRITE_TAB).replace(CONTROL_CHARS, " ");
-		const lines = content.split("\n");
-		while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
-		let highlighted: string[] | undefined;
-		if (language && lines.length > 0) {
-			try {
-				const result = highlightCode(lines.join("\n"), language);
-				if (result.length === lines.length) highlighted = result;
-			} catch {
-				highlighted = undefined;
-			}
-		}
-		preview = { content: raw, language, sample, lines, ...(highlighted ? { highlighted } : {}) };
-		writePreviews.set(args, preview);
-	}
-
-	const total = preview.lines.length;
-	const budget = tool.expanded ? total : Math.min(WRITE_PREVIEW_LINES, total);
-	const max = Math.max(1, width - 2);
-	const clip = (line: string) => truncateToWidth(line, max, "…");
-	const source = preview.highlighted ?? preview.lines;
-	const shown = source.slice(0, budget).flatMap((line) => {
-		const painted = preview.highlighted ? line : theme.fg("toolOutput", line);
-		const rows = wrapTextWithAnsi(painted, Math.max(1, max - 1));
-		return (rows.length > 0 ? rows : [""]).map((row) => ` ${row}`);
-	});
-	if (!tool.expanded && total > budget) {
-		const more = total - budget;
-		shown.push(
-			clip(` ${theme.fg("muted", `... (${more} more ${more === 1 ? "line" : "lines"}, ${total} total, ctrl+o to expand)`)}`),
-		);
-	}
-	// One blank row on each side keeps the body from touching the border,
-	// matching the padding pi's own tool boxes use.
-	return ["", ...(shown.length > 0 ? shown : [" "]), ""];
-}
-
-/**
- * pi's read/write/edit renderers start with the tool title (`read`,
- * `write <path>`, `edit <path>`). The border now carries that title, so drop
- * the duplicate while keeping the original row count for click translation.
- */
-function stripInnerTitle(tool: ToolExecutionLike, lines: string[]): { lines: string[]; dropped: number } {
-	const name = tool.toolName;
-	if (!name) return { lines, dropped: 0 };
-	// A background-filled padding row is still blank for this scan: only the
-	// tool's own title text matters, not the box styling above it.
-	const blank = (line: string) => stripVTControlCharacters(line).trim() === "";
-	let index = 0;
-	while (index < lines.length && blank(lines[index])) index++;
-	if (index >= lines.length) return { lines, dropped: 0 };
-	const plain = stripVTControlCharacters(lines[index]).trim();
-	// A bare tool name is a title for every built-in (`ls`, `grep`, `find`, …).
-	// read/write/edit also put the path on that line. Avoid the generic
-	// fallback's `read path="…"` / wrapped `edit path="…" oldText="…"` lines:
-	// dropping half of those would mangle the remaining rows.
-	const isTitle =
-		plain === name ||
-		(name === "read" && plain.startsWith("read ") && !plain.includes("=")) ||
-		/^(?:edit|write)\s+\S+$/.test(plain);
-	if (!isTitle) return { lines, dropped: 0 };
-	let end = index + 1;
-	if (end < lines.length && blank(lines[end])) end++;
-	return { lines: [...lines.slice(0, index), ...lines.slice(end)], dropped: end - index };
-}
 
 /**
  * A standalone box: a pinned tool, or every tool when grouping is off. The
