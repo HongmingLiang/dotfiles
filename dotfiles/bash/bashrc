@@ -35,6 +35,7 @@ if command -v brew > /dev/null 2>&1; then # if brew is in PATH
 elif [ -f /home/linuxbrew/.linuxbrew/bin/brew ]; then
   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
+alias brwe="brew"
 
 # Source all files from $XDG_CONFIG_HOME/bash/bashrc.d directory
 for file in "$XDG_CONFIG_HOME/bash/bashrc.d/"*; do
