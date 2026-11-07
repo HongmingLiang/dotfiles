@@ -48,6 +48,7 @@ import {
 	planFor,
 	releaseCarrier,
 	requestGroupRender,
+	resetSessionState,
 	tickSpinner,
 	toggleGroup,
 } from "./tool-groups.ts";
@@ -1135,9 +1136,20 @@ export default function (pi: ExtensionAPI) {
 		rememberStatus(patch, event.toolCallId, event.isError ? "error" : "success");
 	});
 
-	pi.on("session_shutdown", async () => {
-		disposeAssistantPatch();
-		disposeGroupBoundaries();
-		disposePatch(patch);
+	pi.on("session_shutdown", async (event) => {
+		// Only a reload replaces this module, and quit ends the process. A new,
+		// resumed or forked session keeps the same module: tearing the hooks down
+		// there left the next transcript with pi's native thinking and no groups.
+		if (event.reason === "reload" || event.reason === "quit") {
+			disposeAssistantPatch();
+			disposeGroupBoundaries();
+			disposePatch(patch);
+			return;
+		}
+		resetSessionState();
+		patch.statuses.clear();
+		// Another extension may have wrapped a component during the switch.
+		installGroupBoundaries();
+		installAssistantPatch(patch);
 	});
 }

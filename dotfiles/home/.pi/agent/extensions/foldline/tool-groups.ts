@@ -107,6 +107,8 @@ const groupOfTool = new WeakMap<object, Group>();
 const groupAtBoundary = new WeakMap<object, Group>();
 const groupOfCarrier = new WeakMap<object, Group>();
 const firstSeen = new WeakMap<object, number>();
+/** Boxes opened by a pointer: ctrl+o opens rows, not a wall of boxes. */
+const pointerExpanded = new WeakSet<object>();
 const revealScheduled = new WeakSet<object>();
 
 /** The most recent TUI, so a carrier with no tool in its group can still repaint. */
@@ -315,6 +317,10 @@ export function planFor(tool: GroupMemberLike, now = Date.now()): GroupPlan {
 		return { header: null, row: false, full: true, pinned: true };
 	}
 
+	// New components may arrive expanded while ctrl+o is on. They still start
+	// as rows until the reader clicks one.
+	if (tool.expanded && !pointerExpanded.has(tool)) tool.expanded = false;
+
 	let group = groupOfTool.get(tool);
 	if (!group) {
 		group = current;
@@ -340,6 +346,10 @@ export function planFor(tool: GroupMemberLike, now = Date.now()): GroupPlan {
 			: "open"
 		: null;
 
+	// `expanded` also arrives from ctrl+o on every tool. Only a pointer-opened
+	// row draws its full box; otherwise 24 calls would open 24 boxes at once.
+	const boxOpen = tool.expanded === true && pointerExpanded.has(tool);
+
 	if (group.level === 0) {
 		const age = tool.isPartial ? now - (firstSeen.get(tool) ?? now) : undefined;
 		if (age !== undefined && age < RUNNING_ROW_DELAY_MS) {
@@ -353,7 +363,7 @@ export function planFor(tool: GroupMemberLike, now = Date.now()): GroupPlan {
 		};
 	}
 
-	return { header, row: !tool.expanded, full: tool.expanded, pinned: false };
+	return { header, row: !boxOpen, full: boxOpen, pinned: false };
 }
 
 /** Note that this group's header has been drawn, for the late-join repaint. */
@@ -401,15 +411,23 @@ export function groupSummaryFor(component: object): GroupSummary | undefined {
 }
 
 /**
- * pi calls `setExpanded` for `ctrl+o` (every box) and for a click on a box.
- * `fromPointer` separates the two: a click folds one box back into its row, a
- * keyboard collapse returns the whole group to its summary line.
+ * pi calls `setExpanded` for `ctrl+o` (every tool) and for a click on a row.
+ * `fromPointer` separates the two: a click opens or folds one box; ctrl+o opens
+ * the group's rows only, so a 24-call group never unfolds 24 boxes at once.
  */
 export function noteSetExpanded(tool: GroupMemberLike, expanded: boolean, fromPointer: boolean): void {
 	const group = groupOfTool.get(tool);
 	if (!group) return;
-	if (expanded) group.level = 1;
-	else if (!fromPointer) group.level = 0;
+	if (expanded) {
+		group.level = 1;
+		// ctrl+o expands every tool at once; opening every box at once buries
+		// the transcript. It opens the group's rows; a row click opens one box.
+		if (fromPointer) pointerExpanded.add(tool);
+		else if (!pointerExpanded.has(tool)) tool.expanded = false;
+	} else {
+		pointerExpanded.delete(tool);
+		if (!fromPointer) group.level = 0;
+	}
 }
 
 /** A click on the `▸` line: open the rows, or fold every box back into them. */
@@ -487,6 +505,23 @@ export function installGroupBoundaries(): void {
 		BashExecutionComponent,
 	]) {
 		wrapBoundary(component?.prototype as any, noteBoundary);
+	}
+}
+
+/**
+ * `/new`, `/resume` and `/fork` reuse this process and this module. The old
+ * transcript's components are gone, but its group pointer, blank-line state and
+ * spinner would leak into the next session; clear them here.
+ */
+export function resetSessionState(): void {
+	current = newGroup();
+	lastMemberGroup = undefined;
+	lastLineBlank = true;
+	lastRenderer = undefined;
+	lastSpinnerTick = 0;
+	if (spinnerTimer) {
+		clearTimeout(spinnerTimer);
+		spinnerTimer = undefined;
 	}
 }
 
