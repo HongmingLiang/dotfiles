@@ -30,7 +30,7 @@ import {
 	type ExtensionAPI,
 	type Theme,
 } from "@earendil-works/pi-coding-agent";
-import { truncateToWidth, Text, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import { Container, Spacer, truncateToWidth, Text, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { formatBashCallHighlighted } from "./bash-highlighter.ts";
 import {
 	configureGroups,
@@ -169,6 +169,58 @@ interface ThoughtBody {
 	run: number;
 	top: number;
 	bottom: number;
+}
+
+const STATUS_DEDUPE = Symbol.for("pi.foldline.status-dedupe");
+const TOOL_OUTPUT_STATUS = /^Tool output: (?:expanded|collapsed)$/;
+
+/**
+ * pi's `showStatus` appends a Spacer + ThemedText pair to the chat. Its
+ * "already showing this status" check only looks at the last two children, so
+ * a ctrl+o before each new tool appends another pair; every pair renders the
+ * latest `lastStatusMessage`, producing a column of identical status lines.
+ *
+ * Prune older `Tool output: …` pairs whenever a new one is added, keeping the
+ * just-added pair as the single live status line.
+ */
+function isToolOutputStatus(child: unknown): boolean {
+	const candidate = child as { build?: unknown; setText?: unknown; render?: unknown };
+	if (typeof candidate?.build !== "function" || typeof candidate.setText !== "function" || typeof candidate.render !== "function") {
+		return false;
+	}
+	try {
+		const rendered = (candidate.render as (width: number) => string[])(200).join("\n");
+		return TOOL_OUTPUT_STATUS.test(stripVTControlCharacters(rendered).trim());
+	} catch {
+		return false;
+	}
+}
+
+function pruneToolOutputStatuses(container: Container, keep: unknown): void {
+	const remove = new Set<unknown>();
+	container.children.forEach((child, index) => {
+		if (child === keep || !isToolOutputStatus(child)) return;
+		remove.add(child);
+		const previous = container.children[index - 1];
+		if (previous instanceof Spacer) remove.add(previous);
+	});
+	if (remove.size === 0) return;
+	container.children = container.children.filter((child) => !remove.has(child));
+}
+
+function installStatusDedupe(): void {
+	const prototype = Container.prototype as unknown as { addChild: (child: unknown) => void; [STATUS_DEDUPE]?: true };
+	if (prototype[STATUS_DEDUPE]) return;
+	const originalAddChild = prototype.addChild;
+	prototype.addChild = function addChildWithStatusDedupe(this: Container, child: unknown): void {
+		originalAddChild.call(this, child);
+		try {
+			if (isToolOutputStatus(child)) pruneToolOutputStatuses(this, child);
+		} catch {
+			// Status cleanup must never take the TUI down with it.
+		}
+	};
+	prototype[STATUS_DEDUPE] = true;
 }
 
 /** >0 while a click of ours runs: pi's box toggle must not read as ctrl+o. */
@@ -1100,6 +1152,7 @@ function disposePatch(patch: FoldlinePatch): void {
 // ── Entry point ─────────────────────────────────────────────────────────────
 
 export default function (pi: ExtensionAPI) {
+	installStatusDedupe();
 	const patch = installPatch();
 	const config = loadConfig();
 	// `/reload` re-runs this entry point on top of the existing prototype patch.
