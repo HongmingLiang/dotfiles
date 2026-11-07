@@ -1,13 +1,17 @@
 /**
  * Tool and thinking folding, Claude-Code style: the calls between two pieces of
- * assistant text (or a user message) fold into one summary line.
+ * assistant text (or a user message) share one header and a row per call. Rows
+ * start open; the header folds them, and ctrl+o opens every call's box.
  *
- *   0  ▸ 4 calls · bash×3 read×1 · thinking×2 · 1.2s   folded
- *   1  ▾ 4 calls · bash×3 read×1 · thinking×2 · 1.2s   click the header
+ *   1  ▾ 4 calls · bash×3 read×1 · thinking×2 · 1.2s   default: one row per call
  *      │ ✓ thinking  check which assertion failed            a step's thinking
  *      │ ✓ bash pnpm test  12 lines · 0.5s
  *      │ ✓ read src/app.ts  120 lines · 0.1s
- *      │ ╭───────╮                                      click a row for its box
+ *   0  ▸ 4 calls · …                                  click the header to fold
+ *
+ * ctrl+o adds the detail boxes:
+ *
+ *      │ ╭───────╮
  *      │ │ …the framed box… │
  *      │ ╰───────╯
  *
@@ -37,6 +41,7 @@ import {
 import { stripVTControlCharacters } from "node:util";
 import { SPINNER_INTERVAL_MS, type GroupSummary } from "./tool-summary.ts";
 
+/** 0 = header only; 1 = one row per call. */
 export type GroupLevel = 0 | 1;
 
 export interface GroupMemberLike {
@@ -90,9 +95,9 @@ export interface GroupOptions {
 }
 
 /**
- * A call hidden for its first second stays hidden: a row that pops out under
- * the summary and folds back a frame later reads as a flicker. Long commands
- * still surface.
+ * After the reader folds a group, a call hidden for its first second stays
+ * hidden: a row that pops out under the summary and folds back a frame later
+ * reads as a flicker. Long commands still surface.
  */
 export const RUNNING_ROW_DELAY_MS = 1000;
 
@@ -100,6 +105,8 @@ export const RUNNING_ROW_DELAY_MS = 1000;
 const ALWAYS_SHOW = new Set(["edit", "write"]);
 
 let groupingEnabled = true;
+/** Every group in this session, so ctrl+t can reveal the ones with thinking. */
+const allGroups = new Set<Group>();
 let current: Group = newGroup();
 /** The group of the most recent real tool; a non-carrier step's thought joins it. */
 let lastMemberGroup: Group | undefined;
@@ -107,8 +114,6 @@ const groupOfTool = new WeakMap<object, Group>();
 const groupAtBoundary = new WeakMap<object, Group>();
 const groupOfCarrier = new WeakMap<object, Group>();
 const firstSeen = new WeakMap<object, number>();
-/** Boxes opened by a pointer: ctrl+o opens rows, not a wall of boxes. */
-const pointerExpanded = new WeakSet<object>();
 const revealScheduled = new WeakSet<object>();
 
 /** The most recent TUI, so a carrier with no tool in its group can still repaint. */
@@ -140,8 +145,8 @@ export function needsLeadingBlank(): boolean {
 }
 
 function newGroup(): Group {
-	return {
-		level: 0,
+	const group: Group = {
+		level: 1,
 		members: [],
 		thoughts: 0,
 		liveCarriers: new Set(),
@@ -149,6 +154,23 @@ function newGroup(): Group {
 		headerCarrier: null,
 		headerDrawn: false,
 	};
+	allGroups.add(group);
+	return group;
+}
+
+/**
+ * ctrl+t is a global "show thinking" action: a collapsed group must not hide
+ * the bodies it just opened. Open only groups that actually have thinking.
+ */
+export function openThinkingGroups(): void {
+	let changed = false;
+	for (const group of allGroups) {
+		if (group.level === 0 && group.thoughts > 0) {
+			group.level = 1;
+			changed = true;
+		}
+	}
+	if (changed) requestGroupRender();
 }
 
 export function configureGroups(options: GroupOptions): void {
@@ -317,10 +339,6 @@ export function planFor(tool: GroupMemberLike, now = Date.now()): GroupPlan {
 		return { header: null, row: false, full: true, pinned: true };
 	}
 
-	// New components may arrive expanded while ctrl+o is on. They still start
-	// as rows until the reader clicks one.
-	if (tool.expanded && !pointerExpanded.has(tool)) tool.expanded = false;
-
 	let group = groupOfTool.get(tool);
 	if (!group) {
 		group = current;
@@ -328,10 +346,13 @@ export function planFor(tool: GroupMemberLike, now = Date.now()): GroupPlan {
 		groupOfTool.set(tool, group);
 		firstSeen.set(tool, now);
 		// The header was drawn by the group's first member, before this one
-		// rendered: ask for one more frame so its count catches up.
-		if (group.headerDrawn) tool.ui?.requestRender?.();
+		// rendered: ask for one more frame so its count catches up. A leading
+		// carrier has not drawn it yet (it had no members when it rendered), so
+		// this join also has to schedule that first header frame.
+		if (group.headerDrawn || group.headerCarrier !== null) tool.ui?.requestRender?.();
 		// pi hands a box `setExpanded(toolOutputExpanded)` before it first
-		// renders; arriving expanded means ctrl+o's expand-all is on.
+		// renders; arriving expanded means ctrl+o's expand-all is on. Open the
+		// group too, so its header and rows match the box.
 		if (tool.expanded) group.level = 1;
 	}
 	// A full re-render walks the transcript from the top: the user boundary
@@ -346,9 +367,9 @@ export function planFor(tool: GroupMemberLike, now = Date.now()): GroupPlan {
 			: "open"
 		: null;
 
-	// `expanded` also arrives from ctrl+o on every tool. Only a pointer-opened
-	// row draws its full box; otherwise 24 calls would open 24 boxes at once.
-	const boxOpen = tool.expanded === true && pointerExpanded.has(tool);
+	// ctrl+o expands every tool; a row click toggles one. Either way `expanded`
+	// is the source of truth for whether this call draws its box.
+	const boxOpen = tool.expanded === true;
 
 	if (group.level === 0) {
 		const age = tool.isPartial ? now - (firstSeen.get(tool) ?? now) : undefined;
@@ -412,25 +433,16 @@ export function groupSummaryFor(component: object): GroupSummary | undefined {
 
 /**
  * pi calls `setExpanded` for `ctrl+o` (every tool) and for a click on a row.
- * `fromPointer` separates the two: a click opens or folds one box; ctrl+o opens
- * the group's rows only, so a 24-call group never unfolds 24 boxes at once.
+ * Expanding opens the group; collapsing only closes boxes, leaving the rows
+ * that are the default view. The header is the way to fold the rows.
  */
-export function noteSetExpanded(tool: GroupMemberLike, expanded: boolean, fromPointer: boolean): void {
+export function noteSetExpanded(tool: GroupMemberLike, expanded: boolean): void {
 	const group = groupOfTool.get(tool);
 	if (!group) return;
-	if (expanded) {
-		group.level = 1;
-		// ctrl+o expands every tool at once; opening every box at once buries
-		// the transcript. It opens the group's rows; a row click opens one box.
-		if (fromPointer) pointerExpanded.add(tool);
-		else if (!pointerExpanded.has(tool)) tool.expanded = false;
-	} else {
-		pointerExpanded.delete(tool);
-		if (!fromPointer) group.level = 0;
-	}
+	if (expanded) group.level = 1;
 }
 
-/** A click on the `▸` line: open the rows, or fold every box back into them. */
+/** A click on the summary: fold the rows and every box, or bring the rows back. */
 export function toggleGroup(component: object): void {
 	const group = groupFor(component);
 	if (!group) return;
@@ -514,6 +526,7 @@ export function installGroupBoundaries(): void {
  * spinner would leak into the next session; clear them here.
  */
 export function resetSessionState(): void {
+	allGroups.clear();
 	current = newGroup();
 	lastMemberGroup = undefined;
 	lastLineBlank = true;
@@ -527,6 +540,7 @@ export function resetSessionState(): void {
 
 /** Test seam: forget the current group. WeakMaps drop with their components. */
 export function resetGroups(): void {
+	allGroups.clear();
 	current = newGroup();
 	lastMemberGroup = undefined;
 }

@@ -6,11 +6,12 @@
  * component gives them one shell without re-registering any tool; bash rows
  * additionally use the tokenizer in bash-highlighter.ts.
  *
- * On top of the frame, the calls between two pieces of assistant text fold into
- * one summary line (`▸ 5 calls · bash×3 · thinking×2 · 1.2s`): click it for
- * one row per call, click a row for the framed box. A step that only thinks and
- * calls tools contributes a `thinking` row instead of pi's `Thinking...` label,
- * so folded replies stay one line per group.
+ * On top of the frame, the calls between two pieces of assistant text share
+ * one summary line (`▾ 5 calls · bash×3 · thinking×2 · 1.2s`) and one row per
+ * call. Rows start open; clicking the summary folds them, ctrl+o opens every
+ * call's framed box, and ctrl+t opens every thinking body. A step that only
+ * thinks and calls tools contributes a `thinking` row instead of pi's
+ * `Thinking...` label.
  *
  * The folding rules live in tool-groups.ts, the wording in tool-summary.ts.
  * Settings: `foldline.groupTools` in ~/.pi/agent/settings.json (default true).
@@ -45,6 +46,7 @@ import {
 	noteRenderedLines,
 	noteSetExpanded,
 	noteTailCarrier,
+	openThinkingGroups,
 	planFor,
 	releaseCarrier,
 	requestGroupRender,
@@ -71,20 +73,29 @@ const FOLDLINE_PATCH = Symbol.for("pi.toolbox.render-patch");
 const MAX_REMEMBERED_STATUSES = 4096;
 
 interface FoldlineConfig {
-	/** Fold a segment's calls into one summary line. */
+	/** Group a segment's calls under one summary line. */
 	groupTools: boolean;
 }
 
 const DEFAULT_CONFIG: FoldlineConfig = { groupTools: true };
 
+/** ctrl+t left the thinking detail bodies open; new messages inherit it. */
+let thinkingDetailsOpen = false;
+
 function loadConfig(): FoldlineConfig {
 	let raw: unknown;
+	let hideThinkingBlock: unknown;
 	try {
-		const settings = JSON.parse(readFileSync(join(getAgentDir(), "settings.json"), "utf8"));
-		raw = (settings as { foldline?: unknown })?.foldline;
+		const settings = JSON.parse(readFileSync(join(getAgentDir(), "settings.json"), "utf8")) as {
+			foldline?: unknown;
+			hideThinkingBlock?: unknown;
+		};
+		raw = settings.foldline;
+		hideThinkingBlock = settings.hideThinkingBlock;
 	} catch {
 		// Missing or malformed settings keep the default.
 	}
+	if (typeof hideThinkingBlock === "boolean") thinkingDetailsOpen = !hideThinkingBlock;
 	const record = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
 	return {
 		groupTools: typeof record.groupTools === "boolean" ? record.groupTools : DEFAULT_CONFIG.groupTools,
@@ -172,34 +183,34 @@ interface ThoughtBody {
 }
 
 const STATUS_DEDUPE = Symbol.for("pi.foldline.status-dedupe");
-const TOOL_OUTPUT_STATUS = /^Tool output: (?:expanded|collapsed)$/;
+const FOLDLINE_STATUS = /^(?:Tool output: (?:expanded|collapsed)|Thinking blocks: (?:hidden|visible))$/;
 
 /**
  * pi's `showStatus` appends a Spacer + ThemedText pair to the chat. Its
  * "already showing this status" check only looks at the last two children, so
- * a ctrl+o before each new tool appends another pair; every pair renders the
- * latest `lastStatusMessage`, producing a column of identical status lines.
+ * a ctrl+o/ctrl+t before each new tool appends another pair; every pair renders
+ * the latest `lastStatusMessage`, producing a column of identical status lines.
  *
- * Prune older `Tool output: …` pairs whenever a new one is added, keeping the
+ * Prune older foldline status pairs whenever a new one is added, keeping the
  * just-added pair as the single live status line.
  */
-function isToolOutputStatus(child: unknown): boolean {
+function isFoldlineStatus(child: unknown): boolean {
 	const candidate = child as { build?: unknown; setText?: unknown; render?: unknown };
 	if (typeof candidate?.build !== "function" || typeof candidate.setText !== "function" || typeof candidate.render !== "function") {
 		return false;
 	}
 	try {
 		const rendered = (candidate.render as (width: number) => string[])(200).join("\n");
-		return TOOL_OUTPUT_STATUS.test(stripVTControlCharacters(rendered).trim());
+		return FOLDLINE_STATUS.test(stripVTControlCharacters(rendered).trim());
 	} catch {
 		return false;
 	}
 }
 
-function pruneToolOutputStatuses(container: Container, keep: unknown): void {
+function pruneFoldlineStatuses(container: Container, keep: unknown): void {
 	const remove = new Set<unknown>();
 	container.children.forEach((child, index) => {
-		if (child === keep || !isToolOutputStatus(child)) return;
+		if (child === keep || !isFoldlineStatus(child)) return;
 		remove.add(child);
 		const previous = container.children[index - 1];
 		if (previous instanceof Spacer) remove.add(previous);
@@ -215,24 +226,12 @@ function installStatusDedupe(): void {
 	prototype.addChild = function addChildWithStatusDedupe(this: Container, child: unknown): void {
 		originalAddChild.call(this, child);
 		try {
-			if (isToolOutputStatus(child)) pruneToolOutputStatuses(this, child);
+			if (isFoldlineStatus(child)) pruneFoldlineStatuses(this, child);
 		} catch {
 			// Status cleanup must never take the TUI down with it.
 		}
 	};
 	prototype[STATUS_DEDUPE] = true;
-}
-
-/** >0 while a click of ours runs: pi's box toggle must not read as ctrl+o. */
-let pointerDepth = 0;
-
-function asPointer<T>(fn: () => T): T {
-	pointerDepth++;
-	try {
-		return fn();
-	} finally {
-		pointerDepth--;
-	}
 }
 
 /**
@@ -570,6 +569,8 @@ function renderGrouped(tool: ToolExecutionLike, width: number, patch: FoldlinePa
 interface ThinkingState {
 	/** Runs the reader has opened. */
 	open: Set<number>;
+	/** ctrl+t opened every run, including runs that arrive later. */
+	openAll: boolean;
 	signature?: { blocks: number; chars: number };
 	runs: readonly string[];
 	/** When the thinking text last grew during the current stream. */
@@ -590,7 +591,7 @@ const thinkingOf = new WeakMap<object, ThinkingState>();
 function thinkingStateOf(component: object): ThinkingState {
 	let state = thinkingOf.get(component);
 	if (!state) {
-		state = { open: new Set(), runs: [] };
+		state = { open: new Set(), openAll: thinkingDetailsOpen, runs: [] };
 		thinkingOf.set(component, state);
 	}
 	return state;
@@ -686,7 +687,7 @@ function renderThoughts(
 		// Only the newest run is still growing; earlier ones are settled.
 		const spinner = live && index === runs.length - 1 ? spinnerFrame() : undefined;
 		lines.push(formatThoughtRow(run, theme, width, spinner));
-		if (!state.open.has(index)) return;
+		if (!state.openAll && !state.open.has(index)) return;
 		const body = renderThinkingBody(run, width, theme);
 		if (body.length === 0) return;
 		const top = lines.length;
@@ -713,6 +714,15 @@ function renderCarrier(component: object, plan: ReturnType<typeof noteCarrier>, 
 
 function toggleThought(component: object, run: number): void {
 	const state = thinkingStateOf(component);
+	if (state.openAll) {
+		// The reader picked one row out of a ctrl+t expansion: keep every other
+		// run open, but make this component manual from now on.
+		state.openAll = false;
+		thinkingRunsOf(component as { lastMessage?: { content?: unknown } }).forEach((_text, index) => {
+			if (index !== run) state.open.add(index);
+		});
+		return;
+	}
 	if (state.open.has(run)) state.open.delete(run);
 	else state.open.add(run);
 }
@@ -860,9 +870,10 @@ const ASSISTANT_WRAPPER = Symbol.for("pi.toolbox.assistant-render");
 const ASSISTANT_MOUSE = Symbol.for("pi.toolbox.assistant-mouse");
 const ASSISTANT_DECORATED = Symbol.for("pi.toolbox.assistant-decorated");
 const ASSISTANT_UPDATE = Symbol.for("pi.toolbox.assistant-update");
+const ASSISTANT_HIDE = Symbol.for("pi.toolbox.assistant-hide-thinking");
 const WRAPPER_DISPOSED = Symbol.for("pi.toolbox.wrapper-disposed");
 
-type AssistantKind = "render" | "handleMouse" | "updateContent";
+type AssistantKind = "render" | "handleMouse" | "updateContent" | "setHideThinkingBlock";
 
 const assistantWrappers: Array<{ proto: any; kind: AssistantKind; wrapper: any; original: any }> = [];
 let assistantDisposed = false;
@@ -885,6 +896,9 @@ function installAssistantPatch(patch: FoldlinePatch): void {
 				return;
 			}
 			const hide = this.hideThinkingBlock;
+			// This is also how a message created after ctrl+t learns the mode:
+			// pi passes the current hideThinkingBlock setting into its constructor.
+			thinkingDetailsOpen = !hide;
 			const label = this.hiddenThinkingLabel;
 			this.hideThinkingBlock = true;
 			this.hiddenThinkingLabel = "";
@@ -899,6 +913,31 @@ function installAssistantPatch(patch: FoldlinePatch): void {
 		wrappedUpdate[WRAPPER_DISPOSED] = false;
 		proto.updateContent = wrappedUpdate;
 		assistantWrappers.push({ proto, kind: "updateContent", wrapper: wrappedUpdate, original: originalUpdate });
+	}
+
+	const currentHide = proto.setHideThinkingBlock;
+	if (
+		typeof currentHide === "function" &&
+		!(currentHide[ASSISTANT_HIDE] && !currentHide[WRAPPER_DISPOSED])
+	) {
+		const originalHide = currentHide;
+		const wrappedHide = function (this: any, hide: boolean): void {
+			originalHide.call(this, hide);
+			if (assistantDisposed || !patch.config.groupTools) return;
+			// Pi's ctrl+t is the thinking counterpart of ctrl+o: visible means
+			// open every thinking body, hidden means close them. Keep the mode
+			// for messages and runs that arrive after the keypress.
+			thinkingDetailsOpen = !hide;
+			if (!hide) openThinkingGroups();
+			const state = thinkingStateOf(this);
+			state.openAll = !hide;
+			if (hide) state.open.clear();
+			if (thinkingRunsOf(this).length > 0) requestGroupRender();
+		};
+		wrappedHide[ASSISTANT_HIDE] = true;
+		wrappedHide[WRAPPER_DISPOSED] = false;
+		proto.setHideThinkingBlock = wrappedHide;
+		assistantWrappers.push({ proto, kind: "setHideThinkingBlock", wrapper: wrappedHide, original: currentHide });
 	}
 
 	const currentRender = proto.render;
@@ -1047,7 +1086,7 @@ function installPatch(): FoldlinePatch {
 			return;
 		}
 		patch.originalSetExpanded?.call(this, expanded);
-		noteSetExpanded(this as any, expanded, pointerDepth > 0);
+		noteSetExpanded(this as any, expanded);
 	};
 	prototype.setExpanded = setExpandedWrapper;
 	patch.setExpandedWrapper = setExpandedWrapper;
@@ -1066,7 +1105,7 @@ function installPatch(): FoldlinePatch {
 				return { handled: true };
 			}
 			if (hit?.kind === "row") {
-				asPointer(() => this.setExpanded?.(!this.expanded));
+				this.setExpanded?.(!this.expanded);
 				this.ui?.requestRender?.();
 				return { handled: true };
 			}
@@ -1076,7 +1115,7 @@ function installPatch(): FoldlinePatch {
 		// Our write preview has no pi layout underneath it: any click on the box
 		// (border included) flips the preview between truncated and full.
 		if (click && this.__foldlineCustom && body && y !== undefined && y >= body.contentTop - 1 && y <= body.bottom + 1) {
-			asPointer(() => this.setExpanded?.(!this.expanded));
+			this.setExpanded?.(!this.expanded);
 			this.ui?.requestRender?.();
 			return { handled: true };
 		}
@@ -1094,7 +1133,7 @@ function installPatch(): FoldlinePatch {
 			};
 			let handled: unknown;
 			try {
-				handled = asPointer(() => patch.originalHandleMouse?.call(this, translated));
+				handled = patch.originalHandleMouse?.call(this, translated);
 			} catch {
 				// A sub-component whose layout is stale must not swallow the click.
 			}
@@ -1102,7 +1141,7 @@ function installPatch(): FoldlinePatch {
 		}
 
 		if (click && body && y !== undefined && y >= body.contentTop - 1 && y <= body.bottom + 1) {
-			asPointer(() => this.setExpanded?.(!this.expanded));
+			this.setExpanded?.(!this.expanded);
 			this.ui?.requestRender?.();
 			return { handled: true };
 		}
@@ -1110,7 +1149,7 @@ function installPatch(): FoldlinePatch {
 		// A grouped component drew its own rows; there is no pi layout underneath
 		// them to hand a stray click to.
 		if (this.__foldlineGrouped) return undefined;
-		return asPointer(() => patch.originalHandleMouse?.call(this, event));
+		return patch.originalHandleMouse?.call(this, event);
 	};
 	prototype.handleMouse = handleMouseWrapper;
 	patch.handleMouseWrapper = handleMouseWrapper;
