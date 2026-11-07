@@ -74,6 +74,8 @@ export interface CarrierPlan {
 	rows: boolean;
 	/** Thinking runs, in order. */
 	runs: readonly string[];
+	/** Real tools in the carrier's group; zero means the row stands alone. */
+	members: number;
 }
 
 interface Group {
@@ -116,6 +118,8 @@ let current: Group = newGroup();
 /** The group of the most recent real tool; a non-carrier step's thought joins it. */
 let lastMemberGroup: Group | undefined;
 const groupOfTool = new WeakMap<object, Group>();
+/** A pinned tool starts one stable group; re-rendering it must not reset it. */
+let groupOfPinned = new WeakMap<object, Group>();
 const groupAtBoundary = new WeakMap<object, Group>();
 const groupOfCarrier = new WeakMap<object, Group>();
 const firstSeen = new WeakMap<object, number>();
@@ -279,6 +283,7 @@ export function noteCarrier(component: object, runs: readonly string[], live = f
 		header: open && group.members.length > 0 && group.headerCarrier === component,
 		rows: open && runs.length > 0,
 		runs,
+		members: group.members.length,
 	};
 }
 
@@ -357,8 +362,15 @@ export function planFor(tool: GroupMemberLike, now = Date.now()): GroupPlan {
 	rememberRenderer(tool.ui);
 
 	if (ALWAYS_SHOW.has(name)) {
-		// A pinned box keeps its frame and splits the calls around it.
-		current = newGroup();
+		// A pinned box keeps its frame and splits the calls around it. Its group
+		// is stable across frames: a fresh group per render would send every
+		// later call to a different group and draw each as a separate one-row box.
+		let group = groupOfPinned.get(tool);
+		if (!group) {
+			group = newGroup();
+			groupOfPinned.set(tool, group);
+		}
+		current = group;
 		lastMemberGroup = undefined;
 		return { header: null, row: false, full: true, pinned: true };
 	}
@@ -381,7 +393,9 @@ export function planFor(tool: GroupMemberLike, now = Date.now()): GroupPlan {
 	}
 	// A full re-render walks the transcript from the top: the user boundary
 	// clears this pointer first, so every member must restore it, not just the
-	// frame that first joined the group.
+	// frame that first joined the group. Moving `current` with the last rendered
+	// member also makes a call that arrives on a later frame join the same group.
+	current = group;
 	lastMemberGroup = group;
 	maybeAutoCollapse(group);
 
@@ -556,6 +570,7 @@ export function installGroupBoundaries(): void {
  */
 export function resetSessionState(): void {
 	allGroups.clear();
+	groupOfPinned = new WeakMap();
 	current = newGroup();
 	lastMemberGroup = undefined;
 	lastLineBlank = true;
@@ -570,6 +585,7 @@ export function resetSessionState(): void {
 /** Test seam: forget the current group. WeakMaps drop with their components. */
 export function resetGroups(): void {
 	allGroups.clear();
+	groupOfPinned = new WeakMap();
 	current = newGroup();
 	lastMemberGroup = undefined;
 }

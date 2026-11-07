@@ -428,16 +428,23 @@ export const TOOL_PREVIEW_CELLS = 56;
 export const THOUGHT_PREVIEW_CELLS = 56;
 
 /** One thinking run as a row, the same shape as a tool row: label, then a preview. */
-export function formatThoughtRow(text: string, theme: ColorTheme, width: number, spinner?: string): string {
+export function formatThoughtRow(
+	text: string,
+	theme: ColorTheme,
+	width: number,
+	spinner?: string,
+	standalone = false,
+): string {
 	const glyph = spinner ? spinner : "✓";
 	const labelText = `${glyph} thinking`;
 	const label = `${theme.fg(spinner ? "warning" : "success", glyph)} ${theme.fg("warning", "thinking")}`;
-	const available = width - GUTTER_CELLS - 1 - visibleWidth(labelText) - 2;
+	const lead = standalone ? " " : `${groupGutter(theme)} `;
+	const available = width - visibleWidth(lead) - visibleWidth(labelText) - 2;
 	const budget = Math.min(THOUGHT_PREVIEW_CELLS, available);
 	const flat = text.replace(/\s+/g, " ").trim();
 	const preview = budget > 1 && flat ? clipPlain(flat, budget) : "";
 	const body = preview ? `  ${theme.fg("thinkingText", preview)}` : "";
-	return clipPlain(`${groupGutter(theme)} ${label}${body}`, width);
+	return clipPlain(`${lead}${label}${body}`, width);
 }
 
 /** The `│` that runs down the left of an open group, under its `▾`. */

@@ -14,7 +14,8 @@
  * thinks and calls tools contributes a `thinking` row instead of pi's
  * `Thinking...` label.
  *
- * The folding rules live in tool-groups.ts, the wording in tool-summary.ts.
+ * The folding rules live in tool-groups.ts, the wording in tool-summary.ts,
+ * and the bounded edit diff in edit-preview.ts.
  * Settings: `foldline.groupTools` in ~/.pi/agent/settings.json (default true).
  *
  * The wrapper strips only SGR background colors: foreground colors, highlighting,
@@ -28,12 +29,15 @@ import { stripVTControlCharacters } from "node:util";
 import {
 	AssistantMessageComponent,
 	getAgentDir,
+	getLanguageFromPath,
+	highlightCode,
 	ToolExecutionComponent,
 	type ExtensionAPI,
 	type Theme,
 } from "@earendil-works/pi-coding-agent";
 import { Container, Spacer, truncateToWidth, Text, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { formatBashCallHighlighted } from "./bash-highlighter.ts";
+import { editPreviewLines } from "./edit-preview.ts";
 import {
 	configureGroups,
 	disposeGroupBoundaries,
@@ -115,6 +119,7 @@ type ToolExecutionLike = {
 	result?: { isError?: boolean; durationMs?: number; content?: unknown; details?: unknown };
 	setExpanded?(expanded: boolean): void;
 	ui?: { requestRender?(): void };
+	callRendererComponent?: { preview?: unknown };
 	__foldlineBody?: BodyGeometry;
 	__foldlineHits?: FoldlineHit[];
 	__foldlineGrouped?: boolean;
@@ -373,24 +378,45 @@ const CONTROL_CHARS = /[\u0000-\u0008\u000b-\u001f\u007f]/g;
 
 interface WritePreview {
 	content: string;
+	language?: string;
+	sample?: string;
 	lines: string[];
+	/** Highlighted lines, only when the highlighter returned a matching count. */
+	highlighted?: string[];
 }
 
 const writePreviews = new WeakMap<object, WritePreview>();
 
-/** Plain content preview for a successful write; the border carries the path. */
+/** Content preview for a successful write; the border carries the path. */
 function writePreviewLines(tool: ToolExecutionLike, width: number, theme: ColorTheme): string[] | undefined {
 	if (tool.toolName !== "write" || tool.isPartial || tool.result?.isError) return undefined;
-	const args = tool.args as { content?: unknown } | undefined;
+	const args = tool.args as { content?: unknown; path?: unknown; file_path?: unknown } | undefined;
 	if (!args || typeof args.content !== "string") return undefined;
 	const raw = args.content;
+	const path = typeof args.path === "string" ? args.path : typeof args.file_path === "string" ? args.file_path : "";
+	let language: string | undefined;
+	try {
+		language = path ? getLanguageFromPath(path) : undefined;
+	} catch {
+		language = undefined;
+	}
+	const sample = theme.fg("toolTitle", "x");
 
 	let preview = writePreviews.get(args);
-	if (!preview || preview.content !== raw) {
+	if (!preview || preview.content !== raw || preview.language !== language || preview.sample !== sample) {
 		const content = raw.replace(/\r/g, "").replace(/\t/g, WRITE_TAB).replace(CONTROL_CHARS, " ");
 		const lines = content.split("\n");
 		while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
-		preview = { content: raw, lines };
+		let highlighted: string[] | undefined;
+		if (language && lines.length > 0) {
+			try {
+				const result = highlightCode(lines.join("\n"), language);
+				if (result.length === lines.length) highlighted = result;
+			} catch {
+				highlighted = undefined;
+			}
+		}
+		preview = { content: raw, language, sample, lines, ...(highlighted ? { highlighted } : {}) };
 		writePreviews.set(args, preview);
 	}
 
@@ -398,9 +424,14 @@ function writePreviewLines(tool: ToolExecutionLike, width: number, theme: ColorT
 	const budget = tool.expanded ? total : Math.min(WRITE_PREVIEW_LINES, total);
 	const max = Math.max(1, width - 2);
 	const clip = (line: string) => truncateToWidth(line, max, "…");
-	const shown = preview.lines.slice(0, budget).map((line) => clip(` ${theme.fg("toolOutput", line)}`));
-	if (!tool.expanded && total > shown.length) {
-		const more = total - shown.length;
+	const source = preview.highlighted ?? preview.lines;
+	const shown = source.slice(0, budget).flatMap((line) => {
+		const painted = preview.highlighted ? line : theme.fg("toolOutput", line);
+		const rows = wrapTextWithAnsi(painted, Math.max(1, max - 1));
+		return (rows.length > 0 ? rows : [""]).map((row) => ` ${row}`);
+	});
+	if (!tool.expanded && total > budget) {
+		const more = total - budget;
 		shown.push(
 			clip(` ${theme.fg("muted", `... (${more} more ${more === 1 ? "line" : "lines"}, ${total} total, ctrl+o to expand)`)}`),
 		);
@@ -459,10 +490,11 @@ function renderStandalone(tool: ToolExecutionLike, width: number, patch: Foldlin
 	const status = getStatus(tool, patch);
 	const theme = (patch.theme ?? FALLBACK_THEME) as ColorTheme;
 	// A successful write gets our own compact preview: pi's native box repeats
-	// the path as an inner title, which the border already carries.
-	const custom = status === "running" || tool.result?.isError
+	// the path as an inner title, which the border already carries. Edit has a
+	// richer diff body, built from the host's numbered diff string.
+	const custom = tool.result?.isError
 		? undefined
-		: writePreviewLines(tool, width, theme);
+		: writePreviewLines(tool, width, theme) ?? editPreviewLines(tool, width, theme);
 	const sourceLines = custom ?? (leadingSpacer.length > 0 ? rawLines.slice(1) : rawLines);
 	const stripped = custom === undefined ? stripInnerTitle(tool, sourceLines) : { lines: sourceLines, dropped: 0 };
 	const contentLines = stripped.lines;
@@ -638,8 +670,9 @@ function thinkingRunsOf(component: { lastMessage?: { content?: unknown } }): rea
 }
 
 /** The thinking body: wrapped, framed, and sitting under its row like a tool box. */
-function renderThinkingBody(text: string, width: number, theme: ColorTheme): string[] {
-	const boxWidth = Math.max(6, width - GUTTER_CELLS - 1);
+function renderThinkingBody(text: string, width: number, theme: ColorTheme, standalone = false): string[] {
+	const lead = standalone ? " " : `${groupGutter(theme)} `;
+	const boxWidth = Math.max(6, width - visibleWidth(lead));
 	const contentWidth = Math.max(4, boxWidth - 4);
 	const wrapped: string[] = [];
 	for (const paragraph of text.split(/\n+/)) {
@@ -652,7 +685,7 @@ function renderThinkingBody(text: string, width: number, theme: ColorTheme): str
 	const content = wrapped.map((line) => ` ${theme.fg("thinkingText", line)}`);
 	const label = ` ${theme.fg("warning", "thinking")} `;
 	return frameToolLines(content, boxWidth, "borderMuted", theme as Theme, label)
-		.map((line) => `${groupGutter(theme)} ${line}`);
+		.map((line) => `${lead}${line}`);
 }
 
 /**
@@ -666,6 +699,7 @@ function renderThoughts(
 	width: number,
 	patch: FoldlinePatch,
 	header?: string,
+	standalone = false,
 ): string[] {
 	const theme = (patch.theme ?? FALLBACK_THEME) as ColorTheme;
 	const state = thinkingStateOf(component);
@@ -687,9 +721,9 @@ function renderThoughts(
 		hits.push({ y: lines.length, run: index });
 		// Only the newest run is still growing; earlier ones are settled.
 		const spinner = live && index === runs.length - 1 ? spinnerFrame() : undefined;
-		lines.push(formatThoughtRow(run, theme, width, spinner));
+		lines.push(formatThoughtRow(run, theme, width, spinner, standalone));
 		if (!state.openAll && !state.open.has(index)) return;
-		const body = renderThinkingBody(run, width, theme);
+		const body = renderThinkingBody(run, width, theme, standalone);
 		if (body.length === 0) return;
 		const top = lines.length;
 		lines.push(...body);
@@ -710,7 +744,15 @@ function renderCarrier(component: object, plan: ReturnType<typeof noteCarrier>, 
 	const active = summary ? summary.running !== undefined || summary.thinkingLive : thinkingLive(component as { isStreaming?: boolean });
 	if (active) tickSpinner();
 	const header = summary ? formatGroupLine(summary, theme, true, active ? spinnerFrame() : undefined) : undefined;
-	return renderThoughts(component, plan.runs, width, patch, header);
+	const standalone = plan.members === 0;
+	const rows = renderThoughts(component, plan.runs, width, patch, header, standalone);
+	// A thinking-only step that has no tools yet (for example before write or
+	// edit) has no group header to carry the usual leading blank. Keep it from
+	// touching the box above while still leaving grouped carriers tight.
+	if (standalone && needsLeadingBlank()) {
+		return insertThoughtRows(component, [""], rows);
+	}
+	return rows;
 }
 
 function toggleThought(component: object, run: number): void {
