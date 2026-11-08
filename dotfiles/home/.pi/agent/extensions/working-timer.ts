@@ -2,9 +2,13 @@
  * Working timer
  *
  * Mirrors the working message on the left end of the editor's top border: the
- * elapsed time of the current prompt, refreshed once per second and frozen at the
- * final duration. `MM:SS`, or `HH:MM:SS` after an hour (the leading unit is never
- * capped).
+ * elapsed time of the current prompt or compaction, refreshed once per second and
+ * frozen at the final duration. `MM:SS`, or `HH:MM:SS` after an hour (the leading
+ * unit is never capped).
+ *
+ * Compaction counts as work: one triggered while idle (for example `/compact`, or
+ * the context check before a prompt) starts its own clock, while a compaction
+ * inside a run keeps the run's clock going.
  */
 
 import {
@@ -38,6 +42,8 @@ export default function workingTimerExtension(pi: ExtensionAPI): void {
 	let startedAt: number | undefined;
 	let elapsedSeconds: number | undefined;
 	let timer: ReturnType<typeof setInterval> | undefined;
+	/** What the clock measures; `idle` means it is frozen. */
+	let phase: "idle" | "run" | "compaction" = "idle";
 
 	const requestRender = (): void => {
 		activeTui?.requestRender();
@@ -60,7 +66,8 @@ export default function workingTimerExtension(pi: ExtensionAPI): void {
 		requestRender();
 	};
 
-	const startTimer = (): void => {
+	const beginTiming = (nextPhase: "run" | "compaction"): void => {
+		phase = nextPhase;
 		stopInterval();
 		startedAt = Date.now();
 		elapsedSeconds = 0;
@@ -69,11 +76,12 @@ export default function workingTimerExtension(pi: ExtensionAPI): void {
 		timer = setInterval(updateElapsed, 1000);
 	};
 
-	const stopTimer = (): void => {
+	const freezeTiming = (): void => {
 		if (startedAt !== undefined) {
 			elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
 		}
 
+		phase = "idle";
 		startedAt = undefined;
 		stopInterval();
 		requestRender();
@@ -81,6 +89,7 @@ export default function workingTimerExtension(pi: ExtensionAPI): void {
 
 	pi.on("session_start", (_event, ctx) => {
 		stopInterval();
+		phase = "idle";
 		startedAt = undefined;
 		elapsedSeconds = undefined;
 
@@ -116,15 +125,31 @@ export default function workingTimerExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("before_agent_start", (_event, ctx) => {
-		if (ctx.mode === "tui") startTimer();
+		if (ctx.mode === "tui") beginTiming("run");
 	});
 
 	pi.on("agent_settled", (_event, ctx) => {
-		if (ctx.mode === "tui") stopTimer();
+		if (ctx.mode === "tui" && phase === "run") freezeTiming();
+	});
+
+	// The compaction check before a prompt runs ahead of `before_agent_start`, and
+	// `/compact` runs with no run at all, so start a clock for any compaction that
+	// finds the timer idle. A compaction inside a run leaves the run clock alone.
+	pi.on("session_before_compact", (_event, ctx) => {
+		if (ctx.mode === "tui" && phase === "idle") beginTiming("compaction");
+	});
+
+	pi.on("session_compact", (_event, ctx) => {
+		if (ctx.mode === "tui" && phase === "compaction") freezeTiming();
+	});
+
+	pi.on("session_compact_failed", (_event, ctx) => {
+		if (ctx.mode === "tui" && phase === "compaction") freezeTiming();
 	});
 
 	pi.on("session_shutdown", () => {
 		stopInterval();
+		phase = "idle";
 		startedAt = undefined;
 		activeTui = undefined;
 	});
