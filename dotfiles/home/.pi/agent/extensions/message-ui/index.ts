@@ -1,5 +1,5 @@
 /**
- * User Message UI — framed prompts and a sticky prompt header.
+ * Message UI — framed prompts, compact summaries, and a sticky prompt header.
  *
  * Submitted user messages become a copy-friendly rounded frame:
  *
@@ -20,11 +20,15 @@
  * row is pinned to the top edge as a subtle `userMessageBg` band with the same
  * label; clicking the band jumps back to the message's top rule.
  *
- * Pi has no public renderer hook for normal user messages, so this module
- * wraps `UserMessageComponent.prototype.render` and `TuiAltScreen`'s frame
- * compositor. Both patches pass through to the previous implementation and
- * restore themselves on reload/shutdown. Tune the `CONFIG` object below if
- * you want a different label, padding, or sticky-header hint.
+ * Compaction, skill, and branch summary messages collapse into one colored row
+ * (`✓ Compacted from … · click to show more`); clicking anywhere on the row
+ * toggles the full body.
+ *
+ * Pi has no public renderer hook for these message components, so this module
+ * wraps `UserMessageComponent.prototype.render`, the summary components'
+ * `updateDisplay`, and `TuiAltScreen`'s frame compositor. All patches pass
+ * through to the previous implementation and restore themselves on
+ * reload/shutdown. Tune the `CONFIG` object below for labels and hints.
  */
 
 import {
@@ -35,6 +39,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { TuiAltScreen } from "@earendil-works/pi-tui";
 import { frameUserMessage, type CopyRange, type FrameConfig, type FrameTheme } from "./frame.ts";
+import { disposeSummaryPatches, installSummaryPatches, type SummaryConfig } from "./summary.ts";
 import { stripMessageMarkersFromLines } from "./markers.ts";
 import { isLeftPress, parseSgrMousePackets } from "./mouse.ts";
 import {
@@ -45,23 +50,26 @@ import {
 	type StickyConfig,
 } from "./sticky.ts";
 
+// Keep the original symbol names so a live reload can reuse wrappers from the
+// previous `user-message-ui` name instead of stacking another frame.
 const FRAME_PATCH = Symbol.for("pi.user-message-frame.frame-patch");
 const FRAME_PATCHES = Symbol.for("pi.user-message-frame.frame-patches");
 const FRAME_WRAPPER = Symbol.for("pi.user-message-frame.frame-wrapper");
 const STICKY_PATCH = Symbol.for("pi.user-message-frame.sticky-patch");
 const STATE_KEY = Symbol.for("pi.user-message-frame.state");
 const THEME_KEY = Symbol.for("@earendil-works/pi-coding-agent:theme");
-const WIDGET_KEY = "user-message-ui";
-const LEGACY_WIDGET_KEY = "user-message-frame";
+const WIDGET_KEY = "message-ui";
+const LEGACY_WIDGET_KEYS = ["user-message-ui", "user-message-frame"];
 const COPY_FEEDBACK_MS = 1_400;
 const COPY_MOUSE_VERSION = 2;
 
-interface UserMessageConfig {
+interface MessageUiConfig {
 	frame: FrameConfig;
 	sticky: StickyConfig;
+	summary: SummaryConfig;
 }
 
-const CONFIG: UserMessageConfig = {
+const CONFIG: MessageUiConfig = {
 	frame: {
 		label: "User",
 		paddingX: 2,
@@ -74,6 +82,11 @@ const CONFIG: UserMessageConfig = {
 		minHintWidth: 24,
 		background: "userMessageBg",
 		extraWidth: 2,
+	},
+	summary: {
+		icon: "✓",
+		showMore: "click to show more",
+		background: "customMessageBg",
 	},
 };
 
@@ -101,7 +114,7 @@ interface ClickPatch {
 }
 
 interface State {
-	config: UserMessageConfig;
+	config: MessageUiConfig;
 	theme?: FrameTheme;
 	tui?: any;
 	framePatch?: FramePatch;
@@ -416,8 +429,8 @@ function installClickPatch(tui: any, state: State): void {
 function installTui(ctx: ExtensionContext, state: State): void {
 	if (ctx.mode !== "tui" || !ctx.hasUI) return;
 	try {
-		// Clear the zero-width widget registered by the pre-rename version.
-		ctx.ui.setWidget(LEGACY_WIDGET_KEY, undefined);
+		// Clear the zero-width widgets registered by the pre-rename versions.
+		for (const key of LEGACY_WIDGET_KEYS) ctx.ui.setWidget(key, undefined);
 		ctx.ui.setWidget(WIDGET_KEY, (tui: any, theme: FrameTheme) => {
 			state.theme = theme;
 			state.tui = tui;
@@ -471,12 +484,13 @@ function disposePrototypePatches(state: State): void {
 	}
 }
 
-export default function userMessageFrameExtension(pi: ExtensionAPI): void {
+export default function messageUiExtension(pi: ExtensionAPI): void {
 	const state = getState();
 	state.config = CONFIG;
 	state.generation += 1;
 	const generation = state.generation;
 
+	installSummaryPatches(() => currentTheme(state), CONFIG.summary);
 	installStickyPatch(state);
 	installFramePatch(state);
 
@@ -509,7 +523,10 @@ export default function userMessageFrameExtension(pi: ExtensionAPI): void {
 		resetStickyState();
 
 		// Every session replacement reloads the extensions, so hand the
-		// prototype back to the previous owner before the new module loads.
-		if (state.generation === generation) disposePrototypePatches(state);
+		// prototypes back to the previous owner before the new module loads.
+		if (state.generation === generation) {
+			disposeSummaryPatches();
+			disposePrototypePatches(state);
+		}
 	});
 }
