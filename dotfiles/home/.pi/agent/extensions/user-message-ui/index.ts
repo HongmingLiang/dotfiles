@@ -46,6 +46,8 @@ import {
 } from "./sticky.ts";
 
 const FRAME_PATCH = Symbol.for("pi.user-message-frame.frame-patch");
+const FRAME_PATCHES = Symbol.for("pi.user-message-frame.frame-patches");
+const FRAME_WRAPPER = Symbol.for("pi.user-message-frame.frame-wrapper");
 const STICKY_PATCH = Symbol.for("pi.user-message-frame.sticky-patch");
 const STATE_KEY = Symbol.for("pi.user-message-frame.state");
 const THEME_KEY = Symbol.for("@earendil-works/pi-coding-agent:theme");
@@ -131,10 +133,32 @@ function currentTheme(state: State): FrameTheme | undefined {
 	return state.theme;
 }
 
+function framePatches(prototype: any): FramePatch[] {
+	let patches = prototype[FRAME_PATCHES] as FramePatch[] | undefined;
+	if (!patches) {
+		patches = [];
+		Reflect.set(prototype, FRAME_PATCHES, patches);
+	}
+	return patches;
+}
+
+function topFramePatch(prototype: any): FramePatch | undefined {
+	return (
+		((prototype.render as any)?.[FRAME_WRAPPER] as FramePatch | undefined) ??
+		(prototype[FRAME_PATCH] as FramePatch | undefined)
+	);
+}
+
 function installFramePatch(state: State): void {
 	const prototype = UserMessageComponent.prototype as any;
-	const existing = prototype[FRAME_PATCH] as FramePatch | undefined;
+	const patches = framePatches(prototype);
+	const existing = topFramePatch(prototype);
+	if (existing && !patches.includes(existing)) patches.push(existing);
+
 	if (existing && prototype.render === existing.installed) {
+		// Reuse the active frame. Any older frame wrappers below it (for
+		// example after repeated /new calls) become pass-throughs.
+		for (const old of patches) if (old !== existing) old.disposed = true;
 		existing.disposed = false;
 		existing.config = state.config.frame;
 		if (!existing.originalHandleMouse) {
@@ -149,6 +173,11 @@ function installFramePatch(state: State): void {
 		state.framePatch = existing;
 		return;
 	}
+
+	// A different extension may have wrapped our renderer on a later session
+	// reload. Keep every older frame as a pass-through so only the new one
+	// draws a border.
+	for (const old of patches) old.disposed = true;
 
 	const original = prototype.render;
 	if (typeof original !== "function") return;
@@ -201,6 +230,8 @@ function installFramePatch(state: State): void {
 		}
 	};
 
+	(patch.installed as any)[FRAME_WRAPPER] = patch;
+	patches.push(patch);
 	prototype.render = patch.installed;
 	Reflect.set(prototype, FRAME_PATCH, patch);
 	installCopyMouse(patch, prototype, state);
@@ -403,9 +434,11 @@ function installTui(ctx: ExtensionContext, state: State): void {
 
 function disposePrototypePatches(state: State): void {
 	const frame = state.framePatch;
+	const prototype = UserMessageComponent.prototype as any;
+	const patches = framePatches(prototype);
+
 	if (frame) {
 		frame.disposed = true;
-		const prototype = UserMessageComponent.prototype as any;
 		if (prototype.render === frame.installed) prototype.render = frame.original;
 		if (frame.handleMouseWrapper && prototype.handleMouse === frame.handleMouseWrapper) {
 			if (frame.originalHandleMouse === Object.getPrototypeOf(prototype)?.handleMouse) {
@@ -419,6 +452,10 @@ function disposePrototypePatches(state: State): void {
 		}
 		state.framePatch = undefined;
 	}
+
+	// Any frame wrapper left in the chain stays inert until the next install.
+	for (const patch of patches) patch.disposed = true;
+	patches.length = 0;
 
 	const sticky = state.stickyPatch;
 	if (sticky) {
@@ -466,15 +503,13 @@ export default function userMessageFrameExtension(pi: ExtensionAPI): void {
 		installTui(ctx, state);
 	});
 
-	pi.on("session_shutdown", async (event) => {
+	pi.on("session_shutdown", async () => {
 		disposeClickPatch(state);
 		state.tui = undefined;
 		resetStickyState();
 
-		// A resumed/new/forked session keeps the same module and prototype
-		// patches; only a reload or quit replaces their owners.
-		if (event.reason === "reload" || event.reason === "quit") {
-			if (state.generation === generation) disposePrototypePatches(state);
-		}
+		// Every session replacement reloads the extensions, so hand the
+		// prototype back to the previous owner before the new module loads.
+		if (state.generation === generation) disposePrototypePatches(state);
 	});
 }
