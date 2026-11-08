@@ -26,6 +26,24 @@ export interface FrameConfig {
 	paddingY: number;
 }
 
+export interface CopyRange {
+	/** Row local to the component. The copy chip lives on the top rule. */
+	row: number;
+	start: number;
+	width: number;
+}
+
+export interface UserMessageFrameResult {
+	lines: string[];
+	copy?: CopyRange;
+}
+
+export interface FrameRenderOptions {
+	includeMarkers?: boolean;
+	copyLabel?: string;
+	copyDone?: boolean;
+}
+
 export const DEFAULT_FRAME_CONFIG: FrameConfig = {
 	label: "User",
 	paddingX: 2,
@@ -81,20 +99,41 @@ function border(theme: FrameTheme | undefined, text: string): string {
 	return paintBorder(theme, text);
 }
 
-function buildTopRule(width: number, theme: FrameTheme | undefined, rawLabel: string): string | undefined {
+function buildTopRule(
+	width: number,
+	theme: FrameTheme | undefined,
+	rawLabel: string,
+	copyLabel: string,
+	copyDone: boolean,
+): { text: string; copy?: CopyRange } | undefined {
 	if (width < 2) return undefined;
 
 	const inner = width - 2;
 	const label = rawLabel.trim();
-	if (!label) return border(theme, `╭${"─".repeat(inner)}╮`);
+	if (!label) return { text: border(theme, `╭${"─".repeat(inner)}╮`) };
 
 	const labelText = ` ${label} `;
 	const labelWidth = visibleWidth(labelText);
-	if (labelWidth + 1 > inner) return border(theme, `╭${"─".repeat(inner)}╮`);
+	if (labelWidth + 1 > inner) return { text: border(theme, `╭${"─".repeat(inner)}╮`) };
+
+	const labelStyled = paint(theme, "accent", bold(theme, labelText));
+
+	// The chip has a fixed width so "Copy" and "Done" do not move the hit area.
+	const copyText = ` [${copyLabel.slice(0, 4).padEnd(4, " ")}] `;
+	const copyWidth = visibleWidth(copyText);
+	const fillWithCopy = width - 2 - labelWidth - copyWidth - 2;
+	if (fillWithCopy >= 1) {
+		const copyStyled = paint(theme, copyDone ? "success" : "borderAccent", bold(theme, copyText));
+		return {
+			text: `${border(theme, "╭─")}${labelStyled}${border(theme, "─".repeat(fillWithCopy))}${copyStyled}${border(theme, "─╮")}`,
+			copy: { row: 0, start: 2 + labelWidth + fillWithCopy, width: copyWidth },
+		};
+	}
 
 	const fill = Math.max(0, inner - labelWidth - 1);
-	const styled = paint(theme, "accent", bold(theme, labelText));
-	return `${border(theme, "╭─")}${styled}${border(theme, `${"─".repeat(fill)}╮`)}`;
+	return {
+		text: `${border(theme, "╭─")}${labelStyled}${border(theme, `${"─".repeat(fill)}╮`)}`,
+	};
 }
 
 export function frameUserMessage(
@@ -103,11 +142,18 @@ export function frameUserMessage(
 	originalPad: number,
 	theme: FrameTheme | undefined,
 	config: FrameConfig,
-): string[] {
-	if (width < 8 || lines.length === 0) return [...lines];
+	options: FrameRenderOptions = {},
+): UserMessageFrameResult {
+	if (width < 8 || lines.length === 0) return { lines: [...lines] };
 
-	const top = buildTopRule(width, theme, config.label);
-	if (top === undefined) return [...lines];
+	const top = buildTopRule(
+		width,
+		theme,
+		config.label,
+		options.copyLabel ?? "Copy",
+		options.copyDone === true,
+	);
+	if (top === undefined) return { lines: [...lines] };
 
 	const padX = Math.max(0, Math.min(config.paddingX, Math.floor((width - 1) / 2)));
 	const padY = Math.max(0, Math.min(config.paddingY, 3));
@@ -139,11 +185,19 @@ export function frameUserMessage(
 		return `${line}${MESSAGE_TEXT}`;
 	});
 
+	const includeMarkers = options.includeMarkers !== false;
 	const bottomRule = border(theme, `╰${"─".repeat(Math.max(0, width - 2))}╯`);
-	const topLine = `${zoned.head}${top}${MESSAGE_START}${markedText ? "" : MESSAGE_TEXT}`;
-	const bottomLine = `${zoned.tail}${bottomRule}${MESSAGE_END}`;
+	const topLine = includeMarkers
+		? `${zoned.head}${top.text}${MESSAGE_START}${markedText ? "" : MESSAGE_TEXT}`
+		: `${zoned.head}${top.text}`;
+	const bottomLine = includeMarkers
+		? `${zoned.tail}${bottomRule}${MESSAGE_END}`
+		: `${zoned.tail}${bottomRule}`;
 	const vertical: string[] = [];
 	for (let i = 0; i < padY; i++) vertical.push("");
 
-	return [topLine, ...vertical, ...markedContent, ...vertical, bottomLine];
+	return {
+		lines: [topLine, ...vertical, ...markedContent, ...vertical, bottomLine],
+		copy: top.copy,
+	};
 }

@@ -14,7 +14,8 @@
  *
  * The frame uses the theme's highlighted border color, so it follows the
  * active palette without a filled background. Content rows have no vertical
- * frame characters, so a terminal selection copies only the message text.
+ * frame characters, so a terminal selection copies only the message text. The
+ * top rule carries a clickable Copy chip when the terminal is wide enough.
  * Once a message scrolls above the fullscreen viewport, its first readable
  * row is pinned to the top edge as a subtle `userMessageBg` band with the same
  * label; clicking the band jumps back to the message's top rule.
@@ -27,12 +28,13 @@
  */
 
 import {
+	copyToClipboard,
 	UserMessageComponent,
 	type ExtensionAPI,
 	type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { TuiAltScreen } from "@earendil-works/pi-tui";
-import { frameUserMessage, type FrameConfig, type FrameTheme } from "./frame.ts";
+import { frameUserMessage, type CopyRange, type FrameConfig, type FrameTheme } from "./frame.ts";
 import { stripMessageMarkersFromLines } from "./markers.ts";
 import { isLeftPress, parseSgrMousePackets } from "./mouse.ts";
 import {
@@ -49,6 +51,8 @@ const STATE_KEY = Symbol.for("pi.user-message-frame.state");
 const THEME_KEY = Symbol.for("@earendil-works/pi-coding-agent:theme");
 const WIDGET_KEY = "user-message-ui";
 const LEGACY_WIDGET_KEY = "user-message-frame";
+const COPY_FEEDBACK_MS = 1_400;
+const COPY_MOUSE_VERSION = 2;
 
 interface UserMessageConfig {
 	frame: FrameConfig;
@@ -74,6 +78,9 @@ const CONFIG: UserMessageConfig = {
 interface FramePatch {
 	original: (this: any, width: number) => string[];
 	installed: (this: any, width: number) => string[];
+	originalHandleMouse?: (this: any, event: any) => unknown;
+	handleMouseWrapper?: (this: any, event: any) => unknown;
+	handleMouseVersion?: number;
 	disposed: boolean;
 	config: FrameConfig;
 }
@@ -94,6 +101,7 @@ interface ClickPatch {
 interface State {
 	config: UserMessageConfig;
 	theme?: FrameTheme;
+	tui?: any;
 	framePatch?: FramePatch;
 	stickyPatch?: StickyPatch;
 	clickPatch?: ClickPatch;
@@ -129,6 +137,15 @@ function installFramePatch(state: State): void {
 	if (existing && prototype.render === existing.installed) {
 		existing.disposed = false;
 		existing.config = state.config.frame;
+		if (!existing.originalHandleMouse) {
+			existing.originalHandleMouse = prototype.handleMouse ?? Object.getPrototypeOf(prototype)?.handleMouse;
+		}
+		if (existing.handleMouseVersion !== COPY_MOUSE_VERSION) {
+			if (existing.handleMouseWrapper && prototype.handleMouse !== existing.handleMouseWrapper) {
+				existing.originalHandleMouse = prototype.handleMouse ?? existing.originalHandleMouse;
+			}
+			installCopyMouse(existing, prototype, state);
+		}
 		state.framePatch = existing;
 		return;
 	}
@@ -139,13 +156,16 @@ function installFramePatch(state: State): void {
 	const patch: FramePatch = {
 		original,
 		installed: undefined as unknown as FramePatch["installed"],
+		originalHandleMouse: prototype.handleMouse ?? Object.getPrototypeOf(prototype)?.handleMouse,
 		disposed: false,
 		config: state.config.frame,
 	};
 
 	patch.installed = function frameUserMessageRender(this: any, width: number): string[] {
-		if (patch.disposed) return original.call(this, width);
-		if (width < 8) return original.call(this, width);
+		if (patch.disposed || width < 8) {
+			this.__userMessageUiCopyRange = undefined;
+			return original.call(this, width);
+		}
 
 		const padX = Math.max(0, Math.min(patch.config.paddingX, Math.floor((width - 1) / 2)));
 		const originalPad = Math.max(0, Number(this.outputPad ?? 1));
@@ -154,26 +174,80 @@ function installFramePatch(state: State): void {
 		try {
 			lines = original.call(this, contentWidth);
 		} catch {
+			this.__userMessageUiCopyRange = undefined;
 			return original.call(this, width);
 		}
 
-			try {
-				return frameUserMessage(
-					lines,
-					width,
-					originalPad,
-					currentTheme(state),
-					patch.config,
-					Boolean(state.stickyPatch),
-				);
-			} catch {
-				return original.call(this, width);
-			}
+		try {
+			const copiedAt = Number(this.__userMessageUiCopiedAt ?? 0);
+			const copyDone = copiedAt > 0 && Date.now() - copiedAt < COPY_FEEDBACK_MS;
+			const result = frameUserMessage(
+				lines,
+				width,
+				originalPad,
+				currentTheme(state),
+				patch.config,
+				{
+					includeMarkers: Boolean(state.stickyPatch),
+					copyLabel: copyDone ? "Done" : "Copy",
+					copyDone,
+				},
+			);
+			this.__userMessageUiCopyRange = result.copy;
+			return result.lines;
+		} catch {
+			this.__userMessageUiCopyRange = undefined;
+			return original.call(this, width);
+		}
 	};
 
 	prototype.render = patch.installed;
 	Reflect.set(prototype, FRAME_PATCH, patch);
+	installCopyMouse(patch, prototype, state);
 	state.framePatch = patch;
+}
+
+function installCopyMouse(patch: FramePatch, prototype: any, state: State): void {
+	const original = patch.originalHandleMouse;
+	if (typeof original !== "function") return;
+
+	patch.handleMouseWrapper = function userMessageHandleMouse(this: any, event: any): unknown {
+		if (!patch.disposed && event?.button === "left" && event.y === 0) {
+			const range = this.__userMessageUiCopyRange as CopyRange | undefined;
+			const onCopy = Boolean(
+				range && event.x >= range.start && event.x < range.start + range.width,
+			);
+			if (onCopy && (event.type === "press" || event.type === "click")) {
+				// A handled press registers this component as the click target; the
+				// synthesized click then fires the copy without starting a selection.
+				if (event.type === "click") {
+					const text = typeof this.text === "string" ? this.text : "";
+					if (text) {
+						void copyToClipboard(text)
+							.then(() => {
+								this.__userMessageUiCopiedAt = Date.now();
+								this.invalidate?.();
+								state.tui?.requestRender?.();
+								clearTimeout(this.__userMessageUiCopyTimer);
+								this.__userMessageUiCopyTimer = setTimeout(() => {
+									this.__userMessageUiCopiedAt = 0;
+									this.invalidate?.();
+									state.tui?.requestRender?.();
+								}, COPY_FEEDBACK_MS);
+							})
+							.catch(() => {
+								// The transcript stays interactive if the clipboard is unavailable.
+							});
+					}
+				}
+				return { handled: true, render: false };
+			}
+		}
+		return original.call(this, event);
+	};
+
+	prototype.handleMouse = patch.handleMouseWrapper;
+	patch.handleMouseVersion = COPY_MOUSE_VERSION;
 }
 
 function installStickyPatch(state: State): void {
@@ -315,6 +389,7 @@ function installTui(ctx: ExtensionContext, state: State): void {
 		ctx.ui.setWidget(LEGACY_WIDGET_KEY, undefined);
 		ctx.ui.setWidget(WIDGET_KEY, (tui: any, theme: FrameTheme) => {
 			state.theme = theme;
+			state.tui = tui;
 			installClickPatch(tui, state);
 			return {
 				render: () => [],
@@ -332,6 +407,13 @@ function disposePrototypePatches(state: State): void {
 		frame.disposed = true;
 		const prototype = UserMessageComponent.prototype as any;
 		if (prototype.render === frame.installed) prototype.render = frame.original;
+		if (frame.handleMouseWrapper && prototype.handleMouse === frame.handleMouseWrapper) {
+			if (frame.originalHandleMouse === Object.getPrototypeOf(prototype)?.handleMouse) {
+				Reflect.deleteProperty(prototype, "handleMouse");
+			} else if (frame.originalHandleMouse) {
+				prototype.handleMouse = frame.originalHandleMouse;
+			}
+		}
 		if (Reflect.get(prototype, FRAME_PATCH) === frame) {
 			Reflect.deleteProperty(prototype, FRAME_PATCH);
 		}
@@ -386,6 +468,7 @@ export default function userMessageFrameExtension(pi: ExtensionAPI): void {
 
 	pi.on("session_shutdown", async (event) => {
 		disposeClickPatch(state);
+		state.tui = undefined;
 		resetStickyState();
 
 		// A resumed/new/forked session keeps the same module and prototype

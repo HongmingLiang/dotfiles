@@ -177,7 +177,7 @@ function renderBarLines(
 ): string[] {
 	const label = color(theme, "accent", bold(theme, config.label));
 	const hintText = width >= config.minHintWidth ? config.hint : "";
-	const hint = hintText ? ` ${color(theme, "muted", hintText)} ` : "";
+	const hint = hintText ? ` ${color(theme, "borderAccent", hintText)} ` : "";
 
 	if (width < 12) {
 		const plain = truncateToWidth(`${config.label}  ${text}`, width, "…");
