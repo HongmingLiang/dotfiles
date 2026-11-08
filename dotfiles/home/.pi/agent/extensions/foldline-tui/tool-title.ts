@@ -9,6 +9,7 @@
 import { homedir } from "node:os";
 import { stripVTControlCharacters } from "node:util";
 import {
+	displayToolName,
 	formatDuration,
 	summarizeArgs,
 	summarizeResult,
@@ -29,15 +30,19 @@ function shortenHome(path: string): string {
 	return home && path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path;
 }
 
-/** The border title on a standalone box: `edit ~/app.ts  +4/-2`. */
+/** The border title on a standalone box: `Edit ~/app.ts  0.4s`. */
 export function standaloneLabel(tool: TitledTool, status: ToolStatus, theme: ColorTheme): string {
 	const name = tool.toolName;
 	if (!name) return "";
 	const args = shortenHome(summarizeArgs(name, tool.args, tool.result));
-	const note = status === "running" ? "" : summarizeResult(name, tool.result, tool.args);
+	// The edit diff already carries its own `+A -B` summary; do not repeat it
+	// in the border. Other tools keep their result note.
+	const note = status === "running" || (name === "edit" && status === "success")
+		? ""
+		: summarizeResult(name, tool.result, tool.args);
 	const duration = status === "running" ? "" : formatDuration(tool.result?.durationMs);
 	const tailPlain = [note, duration].filter(Boolean).join(" · ");
-	const parts = [theme.fg("toolTitle", name)];
+	const parts = [theme.fg("toolTitle", displayToolName(name))];
 	if (args) parts.push(theme.fg("toolOutput", args));
 	const tail = tailPlain ? `  ${theme.fg("muted", tailPlain)}` : "";
 	return ` ${parts.join(" ")}${tail} `;

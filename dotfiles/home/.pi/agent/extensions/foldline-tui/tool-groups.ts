@@ -4,10 +4,10 @@
  * start open, but a group with more than AUTO_COLLAPSE_ROWS rows starts folded;
  * the header unfolds them, and ctrl+o opens every call's box.
  *
- *   1  ▾ 4 calls · bash×3 read×1 · thinking×2 · 1.2s   default: one row per call
- *      │ ✓ thinking  check which assertion failed            a step's thinking
- *      │ ✓ bash pnpm test  12 lines · 0.5s
- *      │ ✓ read src/app.ts  120 lines · 0.1s
+ *   1  ▾ 4 calls · Bash×3 Read×1 · Thinking×2 · 1.2s   default: one row per call
+ *      │ ✓ Thinking  check which assertion failed            a step's thinking
+ *      │ ✓ Bash pnpm test  12 lines · 0.5s
+ *      │ ✓ Read src/app.ts  120 lines · 0.1s
  *   0  ▸ 4 calls · …                                  click the header to fold
  *
  * ctrl+o adds the detail boxes:

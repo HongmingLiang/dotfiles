@@ -11,7 +11,19 @@ import { highlightBashCommand } from "./bash-highlighter.ts";
 
 export type ColorTheme = {
 	fg(color: string, text: string): string;
+	italic?(text: string): string;
 };
+
+/** Display names are capitalized; the tool registry still uses the raw name. */
+export function displayToolName(name: string | undefined): string {
+	const raw = name || "tool";
+	return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+export function italicText(theme: ColorTheme, text: string): string {
+	const styled = theme.italic?.(text);
+	return styled && styled !== text ? styled : `\x1b[3m${text}\x1b[23m`;
+}
 
 export type ToolStatus = "running" | "success" | "error";
 
@@ -120,7 +132,7 @@ export function summarizeNestedCalls(details: unknown): NestedCallSummary {
 		counts.set(key, (counts.get(key) ?? 0) + 1);
 		if (record?.status === "error" || record?.status === "cancelled") failed++;
 	}
-	const kinds = [...counts].map(([name, count]) => `${name}×${count}`).join(" ");
+	const kinds = [...counts].map(([name, count]) => `${displayToolName(name)}×${count}`).join(" ");
 	return { kinds, failed, total: calls.length };
 }
 
@@ -292,7 +304,7 @@ function argParts(toolName: string | undefined, args: unknown): { text: string; 
 	return { text: "", suffix: "" };
 }
 
-/** `▸ 4 calls · bash×3  read×1 · 1.2s` (`▾` while the group is open). */
+/** `▸ 4 calls · Bash×3  Read×1 · 1.2s` (`▾` while the group is open). */
 export function formatGroupLine(summary: GroupSummary, theme: ColorTheme, open: boolean, spinner?: string): string {
 	const glyph = theme.fg("accent", open ? "▾" : "▸");
 	const busy = spinner ? ` ${theme.fg("accent", spinner)}` : "";
@@ -300,12 +312,14 @@ export function formatGroupLine(summary: GroupSummary, theme: ColorTheme, open: 
 		`${glyph}${busy} ${theme.fg("toolTitle", `${summary.count} ${summary.count === 1 ? "call" : "calls"}`)}`,
 	];
 
-	const breakdown = summary.breakdown.map(({ name, count }) => theme.fg("muted", `${name}×${count}`));
+	const breakdown = summary.breakdown.map(({ name, count }) =>
+		theme.fg("muted", `${displayToolName(name)}×${count}`),
+	);
 	if (breakdown.length > 0) parts.push(breakdown.join(theme.fg("muted", "  ")));
 
-	if (summary.thoughts > 0) parts.push(theme.fg("warning", `thinking×${summary.thoughts}`));
+	if (summary.thoughts > 0) parts.push(theme.fg("warning", `${italicText(theme, "Thinking")}×${summary.thoughts}`));
 	if (summary.failed > 0) parts.push(theme.fg(open ? "muted" : "error", `${summary.failed} failed`));
-	if (summary.running) parts.push(theme.fg("warning", `running ${summary.running}`));
+	if (summary.running) parts.push(theme.fg("warning", `running ${displayToolName(summary.running)}`));
 	else if (summary.durationMs > 0) parts.push(theme.fg("muted", formatDuration(summary.durationMs)));
 
 	return ` ${parts.join(theme.fg("muted", " · "))}`;
@@ -359,7 +373,7 @@ function layoutRow(width: number, fixed: number, tailCells: number): RowLayout {
 }
 
 /**
- * ` ✓ bash cd ~/p && pnpm test  12 lines · 1.2s`
+ * ` ✓ Bash cd ~/p && pnpm test  12 lines · 1.2s`
  *
  * The metrics give way before the command does: below a readable argument
  * budget the row keeps the command and drops the tail.
@@ -371,7 +385,8 @@ export function formatToolRow(
 	width: number,
 	spinner?: string,
 ): string {
-	const name = tool.toolName ?? "tool";
+	const rawName = tool.toolName ?? "tool";
+	const name = displayToolName(rawName);
 	const glyph =
 		status === "running"
 			? theme.fg("warning", spinner ?? "…")
@@ -380,7 +395,7 @@ export function formatToolRow(
 				: theme.fg("success", "✓");
 	const nameText = theme.fg("toolTitle", name);
 
-	const note = status === "running" ? "" : summarizeResult(name, tool.result, tool.args);
+	const note = status === "running" ? "" : summarizeResult(rawName, tool.result, tool.args);
 	const duration = status === "running" ? "" : formatDuration(tool.result?.durationMs);
 	const tailPlain = [note, duration].filter(Boolean).join(" · ");
 	const tail = tailPlain ? `  ${theme.fg("muted", tailPlain)}` : "";
@@ -390,7 +405,7 @@ export function formatToolRow(
 	const layout = layoutRow(width, fixed, tailCells);
 	if (layout.args < 4) return clipPlain(`${ROW_LEAD}${glyph} ${nameText}`, width);
 
-	let argText = summarizeArgs(name, tool.args, tool.result);
+	let argText = summarizeArgs(rawName, tool.args, tool.result);
 	// The `(+N lines)` marker is the first thing a narrow row can lose.
 	const overflow = argText.match(/ \(\+\d+ lines\)$/)?.[0];
 	if (overflow) {
@@ -398,7 +413,7 @@ export function formatToolRow(
 	}
 	const shown = clipPlain(argText, layout.args);
 	let colored: string;
-	if (status !== "error" && name === "bash" && shown) {
+	if (status !== "error" && rawName === "bash" && shown) {
 		try {
 			colored = highlightBashCommand(shown, (token, value) => theme.fg(token, value));
 		} catch {
@@ -436,8 +451,8 @@ export function formatThoughtRow(
 	standalone = false,
 ): string {
 	const glyph = spinner ? spinner : "✓";
-	const labelText = `${glyph} thinking`;
-	const label = `${theme.fg(spinner ? "warning" : "success", glyph)} ${theme.fg("warning", "thinking")}`;
+	const labelText = `${glyph} Thinking`;
+	const label = `${theme.fg(spinner ? "warning" : "success", glyph)} ${theme.fg("warning", italicText(theme, "Thinking"))}`;
 	const lead = standalone ? " " : `${groupGutter(theme)} `;
 	const available = width - visibleWidth(lead) - visibleWidth(labelText) - 2;
 	const budget = Math.min(THOUGHT_PREVIEW_CELLS, available);
@@ -455,7 +470,7 @@ export function groupGutter(theme: ColorTheme): string {
 /** Cells `groupGutter` takes. */
 export const GUTTER_CELLS = 2;
 
-/** `✓ thinking` / `⠋ thinking` are both one status cell plus the word. */
-const THINKING_LABEL_CELLS = visibleWidth("✓ thinking");
+/** `✓ Thinking` / `⠋ Thinking` are both one status cell plus the word. */
+const THINKING_LABEL_CELLS = visibleWidth("✓ Thinking");
 /** Absolute column where a thinking row's preview starts. */
 const THINKING_PREFIX_CELLS = GUTTER_CELLS + 1 + THINKING_LABEL_CELLS + 2;

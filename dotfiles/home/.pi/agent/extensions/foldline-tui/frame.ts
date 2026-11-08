@@ -1,8 +1,9 @@
 /**
  * Transparent rounded frames for tool and thinking boxes.
  *
- * The body keeps foreground styling and hyperlinks; only background colors are
- * removed, because foldline draws its own box surface.
+ * The body keeps foreground styling and hyperlinks; native background colors
+ * are removed because Foldline TUI draws its own box surface. Custom edit rows
+ * opt out so their diff tints survive.
  */
 
 import type { Theme } from "@earendil-works/pi-coding-agent";
@@ -44,13 +45,18 @@ export function removeBackgroundSgr(text: string): string {
 	});
 }
 
+/**
+ * Tool boxes use the theme's secondary accent (the link color), which stays
+ * distinct from the user-message frame's `accent` / `borderAccent`. Only a
+ * failed call turns red.
+ */
 export function borderColorFor(status: ToolStatus): string {
-	return status === "running" ? "dim" : status === "success" ? "success" : "error";
+	return status === "error" ? "error" : "mdLink";
 }
 
 /**
  * A rounded transparent frame. `label` is already styled and sits in the top
- * border after a `─`: `╭─ thinking ─────╮`.
+ * border after a `─`: `╭─ Thinking ─────╮`.
  */
 export function frameToolLines(
 	lines: string[],
@@ -58,10 +64,13 @@ export function frameToolLines(
 	colorName: string,
 	theme: Theme | undefined,
 	label?: string,
+	keepBackgrounds = false,
 ): string[] {
 	if (width <= 0) return [];
 	if (width < 2) {
-		return lines.map((line) => truncateToWidth(removeBackgroundSgr(line), Math.max(1, width), ""));
+		return lines.map((line) =>
+			truncateToWidth(keepBackgrounds ? line : removeBackgroundSgr(line), Math.max(1, width), ""),
+		);
 	}
 
 	const innerWidth = width - 2;
@@ -82,7 +91,7 @@ export function frameToolLines(
 	const bottom = border(`╰${"─".repeat(innerWidth)}╯`);
 
 	const body = lines.map((line) => {
-		let content = removeBackgroundSgr(line);
+		let content = keepBackgrounds ? line : removeBackgroundSgr(line);
 		if (visibleWidth(content) > innerWidth) {
 			content = truncateToWidth(content, innerWidth, "");
 		}

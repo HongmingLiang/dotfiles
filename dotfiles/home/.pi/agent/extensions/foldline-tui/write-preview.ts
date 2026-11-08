@@ -2,7 +2,7 @@
  * The write box's content preview.
  *
  * pi's native write renderer already highlights source, but its inner title
- * repeats the path that foldline puts in the border. This module keeps the
+ * repeats the path that Foldline TUI puts in the border. This module keeps the
  * compact preview while preserving that highlighting.
  */
 

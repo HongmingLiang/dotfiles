@@ -4,7 +4,9 @@
  * The outer frame comes from frame.ts. This module only turns
  * `details.diff` (or the renderer's live preview) into body rows:
  *
+ *   - a `↳ diff` summary and rule separate the header from the code;
  *   - wide boxes use `old | new` panes, narrow boxes stay unified;
+ *   - changed rows get a `▌` bar and the theme's success/error tint;
  *   - long code lines wrap instead of being clipped;
  *   - a folded box shows PREVIEW_LINES rows and a ctrl+o footer;
  *   - syntax highlighting and line numbers make the change easy to scan.
@@ -31,6 +33,7 @@ export type EditPreviewTheme = {
 	fg(color: string, text: string): string;
 	bold?(text: string): string;
 	inverse?(text: string): string;
+	getBgAnsi?(color: string): string;
 };
 
 export interface EditPreviewTool {
@@ -112,6 +115,29 @@ function padToWidth(text: string, width: number): string {
 	if (actual === width) return text;
 	if (actual > width) return truncateToWidth(text, width, "");
 	return `${text}${" ".repeat(width - actual)}`;
+}
+
+function keepBackground(text: string, background: string): string {
+	return text.replace(/\x1b\[([0-9;]*)m/g, (sequence, raw: string) => {
+		const params = raw ? raw.split(";").map(Number) : [0];
+		return params.includes(0) || params.includes(49) ? `${sequence}${background}` : sequence;
+	});
+}
+
+function tintBackground(kind: LineKind, theme: EditPreviewTheme): string | undefined {
+	if (kind === "context" || !theme.getBgAnsi) return undefined;
+	const token = kind === "add" ? "toolSuccessBg" : "toolErrorBg";
+	try {
+		return theme.getBgAnsi(token);
+	} catch {
+		return undefined;
+	}
+}
+
+function tintRow(text: string, width: number, background: string | undefined): string {
+	const padded = padToWidth(text, width);
+	if (!background) return padded;
+	return `${background}${keepBackground(padded, background)}\x1b[49m`;
 }
 
 function clip(text: string, width: number): string {
@@ -212,12 +238,13 @@ function renderPrefix(
 ): { styled: string; plainWidth: number } {
 	const number = side === "left" ? line.oldNumber : line.newNumber;
 	const color = codeColor(line.kind);
+	const bar = line.kind === "context" ? " " : theme.fg(color, "▌");
 	const markerText = theme.fg(color, marker(line.kind));
 	const numberText = number === null ? " ".repeat(numberWidth) : String(number).padStart(numberWidth, " ");
 	const styledNumber = theme.fg(color, numberText);
 	return {
-		styled: `${markerText} ${styledNumber} `,
-		plainWidth: 1 + 1 + numberWidth + 1,
+		styled: `${bar}${markerText} ${styledNumber} `,
+		plainWidth: 1 + 1 + 1 + numberWidth + 1,
 	};
 }
 
@@ -226,13 +253,14 @@ function renderWrapped(
 	code: string,
 	width: number,
 	minCodeWidth = 0,
+	background?: string,
 ): string[] {
 	const codeWidth = Math.max(minCodeWidth, width - prefix.plainWidth);
 	const wrapped = codeWidth > 0 ? wrapTextWithAnsi(code, codeWidth) : [""];
 	const rows = wrapped.length > 0 ? wrapped : [""];
 	return rows.map((row, index) => {
 		const lead = index === 0 ? prefix.styled : " ".repeat(prefix.plainWidth);
-		return padToWidth(`${lead}${row}`, width);
+		return tintRow(`${lead}${row}`, width, background);
 	});
 }
 
@@ -250,7 +278,7 @@ function renderCell(
 
 	const prefix = renderPrefix(line, side, numberWidth, theme);
 	const code = renderCode(line, theme, highlight, language, emphasis);
-	return renderWrapped(prefix, code, width);
+	return renderWrapped(prefix, code, width, 0, tintBackground(line.kind, theme));
 }
 
 function renderMeta(meta: DiffMeta, width: number, theme: EditPreviewTheme): string {
@@ -278,7 +306,7 @@ function renderUnified(
 
 		const prefix = renderPrefix(entry, entry.kind === "add" ? "right" : "left", numberWidth, theme);
 		const code = renderCode(entry, theme, highlight, language, undefined);
-		lines.push(...renderWrapped(prefix, code, contentWidth, 1));
+		lines.push(...renderWrapped(prefix, code, contentWidth, 1, tintBackground(entry.kind, theme)));
 	}
 
 	return lines;
@@ -348,6 +376,53 @@ function footer(hidden: number, total: number, width: number, theme: EditPreview
 	return padToWidth(` ${theme.fg("muted", clip(text, Math.max(1, width - 2)))}`, width);
 }
 
+function countChanges(entries: readonly DiffEntry[]): { added: number; removed: number } {
+	let added = 0;
+	let removed = 0;
+	for (const entry of entries) {
+		if (!isDiffLine(entry)) continue;
+		if (entry.kind === "add") added++;
+		else if (entry.kind === "remove") removed++;
+	}
+	return { added, removed };
+}
+
+function statBar(
+	stats: { added: number; removed: number },
+	width: number,
+	theme: EditPreviewTheme,
+): string | undefined {
+	const total = stats.added + stats.removed;
+	if (total === 0) return undefined;
+
+	// Keep the bar readable but short: one cell per ~12 columns, capped at 24.
+	const slots = Math.max(8, Math.min(24, Math.floor(width / 12)));
+	let added = Math.round((stats.added / total) * slots);
+	if (stats.added > 0 && added === 0) added = 1;
+	if (stats.added > 0 && stats.removed > 0 && added >= slots) added = slots - 1;
+	const removed = Math.max(0, slots - added);
+	const left = theme.fg("success", "━".repeat(added));
+	const right = theme.fg("error", "━".repeat(removed));
+	return `${theme.fg("muted", "[")}${left}${right}${theme.fg("muted", "]")}`;
+}
+
+function summaryRow(
+	stats: { added: number; removed: number },
+	mode: "split" | "unified",
+	width: number,
+	theme: EditPreviewTheme,
+): string {
+	const base = `${theme.fg("muted", "↳ diff")} ${theme.fg("success", `+${stats.added}`)} ${theme.fg("error", `-${stats.removed}`)} ${theme.fg("muted", `· ${mode}`)}`;
+	const available = width - visibleWidth(base) - 3;
+	const meter = available >= 8 ? statBar(stats, width, theme) : undefined;
+	const text = meter && visibleWidth(`${base} ${meter}`) <= width ? `${base} ${meter}` : base;
+	return padToWidth(text, width);
+}
+
+function separatorRow(width: number, theme: EditPreviewTheme): string {
+	return padToWidth(theme.fg("borderMuted", "─".repeat(Math.max(0, width))), width);
+}
+
 function renderPreview(
 	diff: string,
 	path: string,
@@ -371,12 +446,14 @@ function renderPreview(
 	const numberWidth = lineNumberWidth(entries);
 	const rows = buildSplitRows(entries);
 
+	const mode = width >= SPLIT_MIN_WIDTH ? "split" : "unified";
 	const body =
-		width >= SPLIT_MIN_WIDTH
+		mode === "split"
 			? renderSplit(rows, innerWidth, numberWidth, theme, highlight, language)
 			: renderUnified(entries, innerWidth, numberWidth, theme, highlight, language);
 	if (!body || body.length === 0) return undefined;
 
+	const stats = countChanges(entries);
 	const total = body.length;
 	const shown = expanded || total <= PREVIEW_LINES ? body : body.slice(0, PREVIEW_LINES);
 	const hidden = total - shown.length;
@@ -384,6 +461,8 @@ function renderPreview(
 
 	return [
 		"",
+		pad(summaryRow(stats, mode, innerWidth - PAD * 2, theme)),
+		pad(separatorRow(innerWidth - PAD * 2, theme)),
 		...shown.map(pad),
 		...(hidden > 0 ? [pad(footer(hidden, total, innerWidth - PAD * 2, theme))] : []),
 		"",

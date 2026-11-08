@@ -1,5 +1,5 @@
 /**
- * Foldline — a shared shell for every Pi tool execution.
+ * Foldline TUI — a shared shell for every Pi tool execution.
  *
  * Pi's renderer hooks are per tool, but the UI draws all agent tools (built-ins,
  * MCP, subagents, extensions) through ToolExecutionComponent. Wrapping that
@@ -7,19 +7,20 @@
  * additionally use the tokenizer in bash-highlighter.ts.
  *
  * On top of the frame, the calls between two pieces of assistant text share
- * one summary line (`▾ 5 calls · bash×3 · thinking×2 · 1.2s`) and one row per
+ * one summary line (`▾ 5 calls · Bash×3 · Thinking×2 · 1.2s`) and one row per
  * call. Rows start open; a group over 20 rows starts folded. Clicking the
  * summary toggles them, ctrl+o opens every call's framed box, and ctrl+t opens
  * every thinking body. A step that only
- * thinks and calls tools contributes a `thinking` row instead of pi's
+ * thinks and calls tools contributes a `Thinking` row instead of pi's
  * `Thinking...` label.
  *
  * The folding rules live in tool-groups.ts, the wording in tool-summary.ts,
  * and the bounded edit diff in edit-preview.ts.
- * Settings: `foldline.groupTools` in ~/.pi/agent/settings.json (default true).
+ * Settings: `foldline-tui.groupTools` in ~/.pi/agent/settings.json (default true).
  *
- * The wrapper strips only SGR background colors: foreground colors, highlighting,
- * hyperlinks and image sequences stay intact.
+ * The wrapper strips native SGR background colors: foreground colors,
+ * highlighting, hyperlinks and image sequences stay intact. The custom edit
+ * body keeps its own row tints.
  */
 
 import { readFileSync } from "node:fs";
@@ -60,39 +61,42 @@ import {
 	toggleGroup,
 } from "./tool-groups.ts";
 import {
+	displayToolName,
 	formatGroupLine,
 	formatThoughtRow,
 	formatToolRow,
 	groupGutter,
 	GUTTER_CELLS,
+	italicText,
 	spinnerFrame,
 	type ColorTheme,
 	type ToolStatus,
 } from "./tool-summary.ts";
 
 /** Stable key: /reload can still find a patch installed before the rename. */
-const FOLDLINE_PATCH = Symbol.for("pi.toolbox.render-patch");
+const FOLDLINE_TUI_PATCH = Symbol.for("pi.toolbox.render-patch");
 const MAX_REMEMBERED_STATUSES = 4096;
 
-interface FoldlineConfig {
+interface FoldlineTuiConfig {
 	/** Group a segment's calls under one summary line. */
 	groupTools: boolean;
 }
 
-const DEFAULT_CONFIG: FoldlineConfig = { groupTools: true };
+const DEFAULT_CONFIG: FoldlineTuiConfig = { groupTools: true };
 
 /** ctrl+t left the thinking detail bodies open; new messages inherit it. */
 let thinkingDetailsOpen = false;
 
-function loadConfig(): FoldlineConfig {
+function loadConfig(): FoldlineTuiConfig {
 	let raw: unknown;
 	let hideThinkingBlock: unknown;
 	try {
 		const settings = JSON.parse(readFileSync(join(getAgentDir(), "settings.json"), "utf8")) as {
+			"foldline-tui"?: unknown;
 			foldline?: unknown;
 			hideThinkingBlock?: unknown;
 		};
-		raw = settings.foldline;
+		raw = settings["foldline-tui"] ?? settings.foldline;
 		hideThinkingBlock = settings.hideThinkingBlock;
 	} catch {
 		// Missing or malformed settings keep the default.
@@ -118,9 +122,9 @@ type ToolExecutionLike = {
 	ui?: { requestRender?(): void };
 	callRendererComponent?: { preview?: unknown };
 	__foldlineBody?: BodyGeometry;
-	__foldlineHits?: FoldlineHit[];
+	__foldlineHits?: FoldlineTuiHit[];
 	__foldlineGrouped?: boolean;
-	/** The box body is ours (write preview), so clicks must not be translated. */
+	/** The box body is ours (write or edit preview), so clicks must not be translated. */
 	__foldlineCustom?: boolean;
 };
 
@@ -130,7 +134,7 @@ type GetCallRenderer = (this: ToolExecutionLike) => CallRenderer | undefined;
 type HandleMouse = (this: ToolExecutionLike, event: any) => unknown;
 type SetExpanded = (this: ToolExecutionLike, expanded: boolean) => void;
 
-type FoldlinePatch = {
+type FoldlineTuiPatch = {
 	originalRender: Render;
 	originalGetCallRenderer?: GetCallRenderer;
 	originalHandleMouse?: HandleMouse;
@@ -144,7 +148,7 @@ type FoldlinePatch = {
 	disposed?: boolean;
 	theme?: Theme;
 	statuses: Map<string, ToolStatus>;
-	config: FoldlineConfig;
+	config: FoldlineTuiConfig;
 };
 
 type PatchedPrototype = {
@@ -168,7 +172,7 @@ interface BodyGeometry {
 	left: number;
 }
 
-interface FoldlineHit {
+interface FoldlineTuiHit {
 	y: number;
 	kind: "header" | "row";
 }
@@ -185,7 +189,7 @@ interface ThoughtBody {
 	bottom: number;
 }
 
-function getStatus(component: ToolExecutionLike, patch: FoldlinePatch): ToolStatus {
+function getStatus(component: ToolExecutionLike, patch: FoldlineTuiPatch): ToolStatus {
 	// A component reports partial output until the final tool result has been
 	// installed. Prefer that lifecycle state so a result event cannot turn the
 	// border green a frame before the UI receives tool_execution_end.
@@ -217,7 +221,7 @@ function clipToWidth(line: string, width: number, ellipsis = "…"): string {
  * border carries the title; a successful write uses our compact preview so
  * pi's inner `write <path>` title does not repeat it.
  */
-function renderStandalone(tool: ToolExecutionLike, width: number, patch: FoldlinePatch): string[] {
+function renderStandalone(tool: ToolExecutionLike, width: number, patch: FoldlineTuiPatch): string[] {
 	tool.__foldlineHits = [];
 	tool.__foldlineBody = undefined;
 	tool.__foldlineGrouped = false;
@@ -248,6 +252,7 @@ function renderStandalone(tool: ToolExecutionLike, width: number, patch: Foldlin
 		borderColorFor(status),
 		patch.theme,
 		standaloneLabel(tool, status, theme),
+		tool.toolName === "edit" && custom !== undefined,
 	);
 	const contentTop = leadingSpacer.length + 1;
 
@@ -268,13 +273,13 @@ function renderStandalone(tool: ToolExecutionLike, width: number, patch: Foldlin
  * The grouped view. The leading spacer pi puts above every tool is dropped:
  * inside a group it would separate the header from its rows.
  */
-function renderGrouped(tool: ToolExecutionLike, width: number, patch: FoldlinePatch): string[] {
+function renderGrouped(tool: ToolExecutionLike, width: number, patch: FoldlineTuiPatch): string[] {
 	const plan = planFor(tool as any);
 	if (plan.pinned) return renderStandalone(tool, width, patch);
 
 	const theme = (patch.theme ?? FALLBACK_THEME) as ColorTheme;
 	const lines: string[] = [];
-	const hits: FoldlineHit[] = [];
+	const hits: FoldlineTuiHit[] = [];
 
 	if (plan.header) {
 		const summary = groupSummaryFor(tool);
@@ -317,7 +322,7 @@ function renderGrouped(tool: ToolExecutionLike, width: number, patch: FoldlinePa
 		if (contentLines.length > 0) {
 			const status = getStatus(tool, patch);
 			// The row above carries args and timing; the border carries the name.
-			const boxLabel = ` ${theme.fg("toolTitle", tool.toolName ?? "tool")} `;
+			const boxLabel = ` ${theme.fg("toolTitle", displayToolName(tool.toolName))} `;
 			const framed = frameToolLines(contentLines, boxWidth, borderColorFor(status), patch.theme, boxLabel);
 			const framedTop = lines.length;
 			for (const line of framed) lines.push(`${groupGutter(theme)} ${line}`);
@@ -425,7 +430,7 @@ function renderThinkingBody(text: string, width: number, theme: ColorTheme, stan
 	if (wrapped.length === 0) return [];
 
 	const content = wrapped.map((line) => ` ${theme.fg("thinkingText", line)}`);
-	const label = ` ${theme.fg("warning", "thinking")} `;
+	const label = ` ${theme.fg("warning", italicText(theme, "Thinking"))} `;
 	return frameToolLines(content, boxWidth, "borderMuted", theme as Theme, label)
 		.map((line) => `${lead}${line}`);
 }
@@ -439,7 +444,7 @@ function renderThoughts(
 	component: object,
 	runs: readonly string[],
 	width: number,
-	patch: FoldlinePatch,
+	patch: FoldlineTuiPatch,
 	header?: string,
 	standalone = false,
 ): string[] {
@@ -476,7 +481,7 @@ function renderThoughts(
 	return lines;
 }
 
-function renderCarrier(component: object, plan: ReturnType<typeof noteCarrier>, width: number, patch: FoldlinePatch): string[] {
+function renderCarrier(component: object, plan: ReturnType<typeof noteCarrier>, width: number, patch: FoldlineTuiPatch): string[] {
 	if (!plan.rows) {
 		Object.assign(component, { __foldlineThoughtHits: [], __foldlineThoughtBodies: [] });
 		return [];
@@ -589,7 +594,7 @@ function renderTail(
 	component: any,
 	lines: string[],
 	width: number,
-	patch: FoldlinePatch,
+	patch: FoldlineTuiPatch,
 	runs: readonly string[],
 ): string[] | undefined {
 	if (runs.length === 0) return undefined;
@@ -616,7 +621,7 @@ function decorateAssistant(
 	component: any,
 	lines: string[],
 	width: number,
-	patch: FoldlinePatch,
+	patch: FoldlineTuiPatch,
 ): string[] {
 	if (!patch.config.groupTools) {
 		releaseCarrier(component);
@@ -663,7 +668,7 @@ type AssistantKind = "render" | "handleMouse" | "updateContent" | "setHideThinki
 const assistantWrappers: Array<{ proto: any; kind: AssistantKind; wrapper: any; original: any }> = [];
 let assistantDisposed = false;
 
-function installAssistantPatch(patch: FoldlinePatch): void {
+function installAssistantPatch(patch: FoldlineTuiPatch): void {
 	const proto = AssistantMessageComponent.prototype as any;
 
 	// pi builds its thinking label/body as children in updateContent, and reads
@@ -802,13 +807,13 @@ function disposeAssistantPatch(): void {
 
 // ── Tool component patch ────────────────────────────────────────────────────
 
-function installPatch(): FoldlinePatch {
+function installPatch(): FoldlineTuiPatch {
 	const prototype = ToolExecutionComponent.prototype as unknown as PatchedPrototype;
-	const existing = Reflect.get(prototype, FOLDLINE_PATCH) as FoldlinePatch | undefined;
+	const existing = Reflect.get(prototype, FOLDLINE_TUI_PATCH) as FoldlineTuiPatch | undefined;
 	if (existing) return existing;
 
 	const originalGetCallRenderer = prototype.getCallRenderer;
-	const patch: FoldlinePatch = {
+	const patch: FoldlineTuiPatch = {
 		originalRender: prototype.render,
 		originalGetCallRenderer,
 		originalHandleMouse: prototype.handleMouse,
@@ -817,12 +822,12 @@ function installPatch(): FoldlinePatch {
 		config: DEFAULT_CONFIG,
 	};
 
-	Reflect.set(prototype, FOLDLINE_PATCH, patch);
+	Reflect.set(prototype, FOLDLINE_TUI_PATCH, patch);
 
 	// Keep Pi's normal Bash renderer alive for its elapsed-time state, but
 	// replace only the displayed call component with the standalone tokenizer.
 	if (originalGetCallRenderer) {
-		const callRendererWrapper = function foldlineGetCallRenderer(this: ToolExecutionLike): CallRenderer | undefined {
+		const callRendererWrapper = function foldlineTuiGetCallRenderer(this: ToolExecutionLike): CallRenderer | undefined {
 			if (patch.disposed) return patch.originalGetCallRenderer?.call(this);
 			const originalRenderer = patch.originalGetCallRenderer?.call(this);
 			if (this.toolName !== "bash") return originalRenderer;
@@ -847,7 +852,7 @@ function installPatch(): FoldlinePatch {
 		patch.callRendererWrapper = callRendererWrapper;
 	}
 
-	const renderWrapper = function foldlineRender(this: ToolExecutionLike, width: number): string[] {
+	const renderWrapper = function foldlineTuiRender(this: ToolExecutionLike, width: number): string[] {
 		if (patch.disposed) return patch.originalRender.call(this, width);
 		let lines: string[];
 		try {
@@ -865,7 +870,7 @@ function installPatch(): FoldlinePatch {
 	prototype.render = renderWrapper;
 	patch.renderWrapper = renderWrapper;
 
-	const setExpandedWrapper = function foldlineSetExpanded(this: ToolExecutionLike, expanded: boolean): void {
+	const setExpandedWrapper = function foldlineTuiSetExpanded(this: ToolExecutionLike, expanded: boolean): void {
 		if (patch.disposed) {
 			patch.originalSetExpanded?.call(this, expanded);
 			return;
@@ -876,7 +881,7 @@ function installPatch(): FoldlinePatch {
 	prototype.setExpanded = setExpandedWrapper;
 	patch.setExpandedWrapper = setExpandedWrapper;
 
-	const handleMouseWrapper = function foldlineHandleMouse(this: ToolExecutionLike, event: any): unknown {
+	const handleMouseWrapper = function foldlineTuiHandleMouse(this: ToolExecutionLike, event: any): unknown {
 		if (patch.disposed) return patch.originalHandleMouse?.call(this, event);
 		const y = typeof event?.y === "number" ? event.y : undefined;
 		const click = event?.type === "click" && (event.button === "left" || event.button === 0);
@@ -942,7 +947,7 @@ function installPatch(): FoldlinePatch {
 	return patch;
 }
 
-function rememberStatus(patch: FoldlinePatch, toolCallId: string, status: ToolStatus): void {
+function rememberStatus(patch: FoldlineTuiPatch, toolCallId: string, status: ToolStatus): void {
 	patch.statuses.delete(toolCallId);
 	patch.statuses.set(toolCallId, status);
 	while (patch.statuses.size > MAX_REMEMBERED_STATUSES) {
@@ -957,7 +962,7 @@ function rememberStatus(patch: FoldlinePatch, toolCallId: string, status: ToolSt
  * is still on top and mark the rest as pass-through, then drop the symbol so
  * the new module installs a fresh patch and fresh group state.
  */
-function disposePatch(patch: FoldlinePatch): void {
+function disposePatch(patch: FoldlineTuiPatch): void {
 	patch.disposed = true;
 	const prototype = ToolExecutionComponent.prototype as unknown as PatchedPrototype;
 	if (prototype.render === patch.renderWrapper) prototype.render = patch.originalRender;
@@ -970,7 +975,7 @@ function disposePatch(patch: FoldlinePatch): void {
 	if (patch.originalSetExpanded && prototype.setExpanded === patch.setExpandedWrapper) {
 		prototype.setExpanded = patch.originalSetExpanded;
 	}
-	if (Reflect.get(prototype, FOLDLINE_PATCH) === patch) Reflect.deleteProperty(prototype, FOLDLINE_PATCH);
+	if (Reflect.get(prototype, FOLDLINE_TUI_PATCH) === patch) Reflect.deleteProperty(prototype, FOLDLINE_TUI_PATCH);
 }
 
 // ── Entry point ─────────────────────────────────────────────────────────────

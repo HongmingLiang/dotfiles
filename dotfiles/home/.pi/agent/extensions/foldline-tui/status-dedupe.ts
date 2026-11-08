@@ -4,32 +4,33 @@
  * ctrl+o/ctrl+t before each new tool appends another pair; every pair renders
  * the latest message, producing a column of identical lines.
  *
- * Keep only the newest foldline status pair.
+ * Keep only the newest Foldline TUI status pair.
  */
 
 import { Container, Spacer } from "@earendil-works/pi-tui";
 import { stripVTControlCharacters } from "node:util";
 
+/** Keep the pre-rename key so a hot reload can still prune the old wrapper. */
 const STATUS_DEDUPE = Symbol.for("pi.foldline.status-dedupe");
-const FOLDLINE_STATUS = /^(?:Tool output: (?:expanded|collapsed)|Thinking blocks: (?:hidden|visible))$/;
+const FOLDLINE_TUI_STATUS = /^(?:Tool output: (?:expanded|collapsed)|Thinking blocks: (?:hidden|visible))$/;
 
-function isFoldlineStatus(child: unknown): boolean {
+function isFoldlineTuiStatus(child: unknown): boolean {
 	const candidate = child as { build?: unknown; setText?: unknown; render?: unknown };
 	if (typeof candidate?.build !== "function" || typeof candidate.setText !== "function" || typeof candidate.render !== "function") {
 		return false;
 	}
 	try {
 		const rendered = (candidate.render as (width: number) => string[])(200).join("\n");
-		return FOLDLINE_STATUS.test(stripVTControlCharacters(rendered).trim());
+		return FOLDLINE_TUI_STATUS.test(stripVTControlCharacters(rendered).trim());
 	} catch {
 		return false;
 	}
 }
 
-function pruneFoldlineStatuses(container: Container, keep: unknown): void {
+function pruneFoldlineTuiStatuses(container: Container, keep: unknown): void {
 	const remove = new Set<unknown>();
 	container.children.forEach((child, index) => {
-		if (child === keep || !isFoldlineStatus(child)) return;
+		if (child === keep || !isFoldlineTuiStatus(child)) return;
 		remove.add(child);
 		const previous = container.children[index - 1];
 		if (previous instanceof Spacer) remove.add(previous);
@@ -45,7 +46,7 @@ export function installStatusDedupe(): void {
 	prototype.addChild = function addChildWithStatusDedupe(this: Container, child: unknown): void {
 		originalAddChild.call(this, child);
 		try {
-			if (isFoldlineStatus(child)) pruneFoldlineStatuses(this, child);
+			if (isFoldlineTuiStatus(child)) pruneFoldlineTuiStatuses(this, child);
 		} catch {
 			// Status cleanup must never take the TUI down with it.
 		}
