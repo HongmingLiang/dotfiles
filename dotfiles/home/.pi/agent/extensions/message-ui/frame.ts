@@ -5,11 +5,19 @@
  * a theme-colored heavy top rule carrying the label, a tighter left margin,
  * and a bottom rule. Content rows have no vertical frame characters, so
  * selecting them copies the message text without side decorations.
+ *
+ * The label carries the send time and, once the session has been answered by
+ * more than one model, the provider/model that answered each message:
+ *
+ *   ━━ User · 14:32 ━━━━━━━━━━━━━━━━ [Copy] ━━
+ *   ━━ User · 02-13 14:35 · openai/gpt-5 ━━ [Copy] ━━
+ *
+ * Segments are dropped model-first, then time, as the terminal narrows.
  */
 
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { isBlankLine, isImageLine, removeBackgroundSgr, stripLeadingSpaces, trimTrailingSpaces } from "./ansi.ts";
-import { MESSAGE_END, MESSAGE_START, MESSAGE_TEXT } from "./markers.ts";
+import { MESSAGE_END, MESSAGE_START, MESSAGE_TEXT, messageLabelMarker } from "./markers.ts";
 
 export interface FrameTheme {
 	fg(color: any, text: string): string;
@@ -42,6 +50,10 @@ export interface FrameRenderOptions {
 	includeMarkers?: boolean;
 	copyLabel?: string;
 	copyDone?: boolean;
+	/** Preformatted send time, e.g. `14:32`, `02-13 09:12`, or `2025-12-31 09:12`. */
+	time?: string;
+	/** Preformatted `provider/model`, set only for a multi-model session. */
+	model?: string;
 }
 
 /**
@@ -118,34 +130,48 @@ function buildTopRule(
 	rawLabel: string,
 	copyLabel: string,
 	copyDone: boolean,
-): { text: string; copy?: CopyRange } | undefined {
+	meta: { time?: string; model?: string },
+): { text: string; label?: string; copy?: CopyRange } | undefined {
 	if (width < 2) return undefined;
 
-	const plain = { text: border(theme, rule(width)) };
 	const label = rawLabel.trim();
-	if (!label) return plain;
-
-	const labelText = ` ${label} `;
-	const labelWidth = visibleWidth(labelText);
-	// Keep at least two rule cells on each side of the label.
-	if (labelWidth + 4 > width) return plain;
-
-	const labelStyled = paint(theme, "accent", bold(theme, labelText));
+	if (!label) return { text: border(theme, rule(width)) };
 
 	// The chip has a fixed width so "Copy" and "Done" do not move the hit area.
 	const copyText = ` [${copyLabel.slice(0, 4).padEnd(4, " ")}] `;
 	const copyWidth = visibleWidth(copyText);
+
+	const compose = (parts: readonly string[]): string => ` ${parts.join(" · ")} `;
+	const parts = [label, meta.time, meta.model].filter(
+		(part): part is string => typeof part === "string" && part.length > 0,
+	);
+
+	// Keep one rule cell between the label and the chip: shed the model first,
+	// then the time, so the label itself survives the longest.
+	let labelText = compose(parts);
+	while (parts.length > 1 && visibleWidth(labelText) + copyWidth + 5 > width) {
+		parts.pop();
+		labelText = compose(parts);
+	}
+
+	const labelWidth = visibleWidth(labelText);
+	const labelStyled = paint(theme, "accent", bold(theme, labelText));
 	const fillWithCopy = width - 2 - labelWidth - copyWidth - 2;
 	if (fillWithCopy >= 1) {
 		const copyStyled = paint(theme, copyDone ? "success" : "borderAccent", bold(theme, copyText));
 		return {
 			text: `${border(theme, rule(2))}${labelStyled}${border(theme, rule(fillWithCopy))}${copyStyled}${border(theme, rule(2))}`,
+			label: labelText.trim(),
 			copy: { row: 0, start: 2 + labelWidth + fillWithCopy, width: copyWidth },
 		};
 	}
 
+	// Without a chip the label still needs two rule cells on each side.
+	if (labelWidth + 4 > width) return { text: border(theme, rule(width)) };
+
 	return {
 		text: `${border(theme, rule(2))}${labelStyled}${border(theme, rule(width - 2 - labelWidth))}`,
+		label: labelText.trim(),
 	};
 }
 
@@ -165,6 +191,7 @@ export function frameUserMessage(
 		config.label,
 		options.copyLabel ?? "Copy",
 		options.copyDone === true,
+		{ time: options.time, model: options.model },
 	);
 	if (top === undefined) return { lines: [...lines] };
 
@@ -200,8 +227,9 @@ export function frameUserMessage(
 
 	const includeMarkers = options.includeMarkers !== false;
 	const bottomRule = border(theme, rule(width));
+	const labelMarker = messageLabelMarker(top.label ?? "");
 	const topLine = includeMarkers
-		? `${zoned.head}${top.text}${MESSAGE_START}${markedText ? "" : MESSAGE_TEXT}`
+		? `${zoned.head}${top.text}${MESSAGE_START}${labelMarker}${markedText ? "" : MESSAGE_TEXT}`
 		: `${zoned.head}${top.text}`;
 	const bottomLine = includeMarkers
 		? `${zoned.tail}${bottomRule}${MESSAGE_END}`

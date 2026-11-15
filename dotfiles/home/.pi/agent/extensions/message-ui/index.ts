@@ -1,16 +1,18 @@
 /**
  * Message UI — framed prompts, compact summaries, and a sticky prompt header.
  *
- * Submitted user messages become a copy-friendly heavy frame:
+ * Submitted user messages become a copy-friendly heavy frame whose label
+ * carries the send time, and — once the session was answered by more than one
+ * model — the provider/model of each answer:
  *
- *   ━━━━━━━━ User ━━━━━━━━━━━━━━━━━ [Copy] ━━
+ *   ━━━━━━ User · 14:32 ━━━━━━━━━━━━━━━━ [Copy] ━━
  *
  *     Refactor the auth flow:
  *
  *     1. extract token parsing
  *     2. add tests
  *
- *   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ *   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  *
  * The frame uses the theme's highlighted border color, so it follows the
  * active palette without a filled background. Content rows have no vertical
@@ -40,6 +42,7 @@ import {
 import { TuiAltScreen } from "@earendil-works/pi-tui";
 import { frameUserMessage, type CopyRange, type FrameConfig, type FrameTheme } from "./frame.ts";
 import { disposeSummaryPatches, installSummaryPatches, type SummaryConfig } from "./summary.ts";
+import { messageMetadata, modelLabel, resetMessageMetadataCache } from "./meta.ts";
 import { stripMessageMarkersFromLines } from "./markers.ts";
 import { isLeftPress, parseSgrMousePackets } from "./mouse.ts";
 import {
@@ -67,6 +70,12 @@ interface MessageUiConfig {
 	frame: FrameConfig;
 	sticky: StickyConfig;
 	summary: SummaryConfig;
+	meta: {
+		/** Send time in the rule label (`User · 14:32`). */
+		time: boolean;
+		/** Provider/model, shown on every message once the session used two models. */
+		model: boolean;
+	};
 }
 
 const CONFIG: MessageUiConfig = {
@@ -87,6 +96,10 @@ const CONFIG: MessageUiConfig = {
 		icon: "✓",
 		showMore: "click to show more",
 		background: "customMessageBg",
+	},
+	meta: {
+		time: true,
+		model: true,
 	},
 };
 
@@ -117,6 +130,7 @@ interface State {
 	config: MessageUiConfig;
 	theme?: FrameTheme;
 	tui?: any;
+	ctx?: ExtensionContext;
 	framePatch?: FramePatch;
 	stickyPatch?: StickyPatch;
 	clickPatch?: ClickPatch;
@@ -144,6 +158,16 @@ function currentTheme(state: State): FrameTheme | undefined {
 		// Fall through to the theme captured at session start.
 	}
 	return state.theme;
+}
+
+function sessionEntries(state: State): readonly any[] {
+	try {
+		const entries = state.ctx?.sessionManager?.getEntries?.();
+		if (Array.isArray(entries)) return entries;
+	} catch {
+		// The session may be shutting down mid-render.
+	}
+	return [];
 }
 
 function framePatches(prototype: any): FramePatch[] {
@@ -223,6 +247,17 @@ function installFramePatch(state: State): void {
 		try {
 			const copiedAt = Number(this.__userMessageUiCopiedAt ?? 0);
 			const copyDone = copiedAt > 0 && Date.now() - copiedAt < COPY_FEEDBACK_MS;
+			// Rebuilt messages carry their entry timestamp; the live one does not.
+			if (!this.__userMessageUiSentAt) this.__userMessageUiSentAt = Date.now();
+			const meta = messageMetadata({
+				messageId: typeof this.messageId === "string" ? this.messageId : undefined,
+				timestamp: typeof this.timestamp === "string" ? this.timestamp : undefined,
+				sentAt: this.__userMessageUiSentAt as number,
+				entries: sessionEntries(state),
+				currentModel: modelLabel(state.ctx?.model?.provider, state.ctx?.model?.id),
+				showTime: state.config.meta.time,
+				showModel: state.config.meta.model,
+			});
 			const result = frameUserMessage(
 				lines,
 				width,
@@ -233,6 +268,8 @@ function installFramePatch(state: State): void {
 					includeMarkers: Boolean(state.stickyPatch),
 					copyLabel: copyDone ? "Done" : "Copy",
 					copyDone,
+					time: meta.time,
+					model: meta.model,
 				},
 			);
 			this.__userMessageUiCopyRange = result.copy;
@@ -496,6 +533,8 @@ export default function messageUiExtension(pi: ExtensionAPI): void {
 
 	pi.on("session_start", async (_event, ctx) => {
 		state.theme = ctx.ui.theme as FrameTheme;
+		state.ctx = ctx;
+		resetMessageMetadataCache();
 		installTui(ctx, state);
 	});
 
@@ -503,23 +542,29 @@ export default function messageUiExtension(pi: ExtensionAPI): void {
 	// cheap point to pick up the current instance before new messages render.
 	pi.on("before_agent_start", async (_event, ctx) => {
 		state.theme = ctx.ui.theme as FrameTheme;
+		state.ctx = ctx;
 	});
 
 	// Rebuilding the transcript can replace the TUI/widget; make sure the
 	// click wrapper is installed on the current instance.
 	pi.on("session_compact", async (_event, ctx) => {
 		state.theme = ctx.ui.theme as FrameTheme;
+		state.ctx = ctx;
+		resetMessageMetadataCache();
 		installTui(ctx, state);
 	});
 
 	pi.on("session_tree", async (_event, ctx) => {
 		state.theme = ctx.ui.theme as FrameTheme;
+		state.ctx = ctx;
+		resetMessageMetadataCache();
 		installTui(ctx, state);
 	});
 
 	pi.on("session_shutdown", async () => {
 		disposeClickPatch(state);
 		state.tui = undefined;
+		state.ctx = undefined;
 		resetStickyState();
 
 		// Every session replacement reloads the extensions, so hand the

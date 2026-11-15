@@ -16,6 +16,7 @@ import type { FrameTheme } from "./frame.ts";
 import {
 	MESSAGE_START,
 	MESSAGE_TEXT,
+	extractMessageLabel,
 	stripMessageMarkers,
 	stripMessageMarkersFromLines,
 } from "./markers.ts";
@@ -70,6 +71,8 @@ interface StickyInfo {
 	width: number;
 	jumpRow: number;
 	text: string;
+	/** Composed frame label ("User · 14:32 · openai/gpt-5") when present. */
+	label?: string;
 }
 
 /** Find the scroll box by identity, falling back to the first content-bearing box. */
@@ -133,6 +136,7 @@ function computeSticky(tui: any, layout: any): StickyInfo | undefined {
 		width: scrollbar ? Math.max(1, clip.width - 1) : clip.width,
 		jumpRow: start,
 		text,
+		label: extractMessageLabel(lines[start] ?? ""),
 	};
 }
 
@@ -174,13 +178,14 @@ function renderBarLines(
 	width: number,
 	theme: FrameTheme | undefined,
 	config: StickyConfig,
+	labelText: string,
 ): string[] {
-	const label = color(theme, "accent", bold(theme, config.label));
+	const label = color(theme, "accent", bold(theme, labelText));
 	const hintText = width >= config.minHintWidth ? config.hint : "";
 	const hint = hintText ? ` ${color(theme, "borderAccent", hintText)} ` : "";
 
 	if (width < 12) {
-		const plain = truncateToWidth(`${config.label}  ${text}`, width, "…");
+		const plain = truncateToWidth(`${labelText}  ${text}`, width, "…");
 		return [paintBand(theme, config.background, plain, width)];
 	}
 
@@ -237,7 +242,7 @@ export function renderStickyScreen(
 	const x = info.x - leftGrow;
 	const width = info.width + leftGrow + rightGrow;
 
-	const bars = renderBarLines(info.text, width, theme, config);
+	const bars = renderBarLines(info.text, width, theme, config, info.label ?? config.label);
 	const available = Math.max(0, stripped.length - info.row);
 	const visibleBars: string[] = [];
 	for (let i = 0; i < bars.length && i < available; i++) {
