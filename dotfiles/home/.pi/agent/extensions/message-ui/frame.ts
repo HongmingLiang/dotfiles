@@ -2,7 +2,7 @@
  * Copy-friendly frame for a submitted user message.
  *
  * The message keeps Pi's Markdown rendering, but the frame owns the surface:
- * a theme-colored rounded top rule carrying the label, a tighter left margin,
+ * a theme-colored heavy top rule carrying the label, a tighter left margin,
  * and a bottom rule. Content rows have no vertical frame characters, so
  * selecting them copies the message text without side decorations.
  */
@@ -42,6 +42,19 @@ export interface FrameRenderOptions {
 	includeMarkers?: boolean;
 	copyLabel?: string;
 	copyDone?: boolean;
+}
+
+/**
+ * Heavy straight rule: one stroke, no corners, no side rails. The rounded
+ * `╭─╮` set read too light next to the message body, and any corner glyph
+ * forced a full box; a single line keeps both frames copy-friendly.
+ */
+const RULE = {
+	horizontal: "━",
+} as const;
+
+function rule(count: number): string {
+	return RULE.horizontal.repeat(Math.max(0, count));
 }
 
 export const DEFAULT_FRAME_CONFIG: FrameConfig = {
@@ -108,13 +121,14 @@ function buildTopRule(
 ): { text: string; copy?: CopyRange } | undefined {
 	if (width < 2) return undefined;
 
-	const inner = width - 2;
+	const plain = { text: border(theme, rule(width)) };
 	const label = rawLabel.trim();
-	if (!label) return { text: border(theme, `╭${"─".repeat(inner)}╮`) };
+	if (!label) return plain;
 
 	const labelText = ` ${label} `;
 	const labelWidth = visibleWidth(labelText);
-	if (labelWidth + 1 > inner) return { text: border(theme, `╭${"─".repeat(inner)}╮`) };
+	// Keep at least two rule cells on each side of the label.
+	if (labelWidth + 4 > width) return plain;
 
 	const labelStyled = paint(theme, "accent", bold(theme, labelText));
 
@@ -125,14 +139,13 @@ function buildTopRule(
 	if (fillWithCopy >= 1) {
 		const copyStyled = paint(theme, copyDone ? "success" : "borderAccent", bold(theme, copyText));
 		return {
-			text: `${border(theme, "╭─")}${labelStyled}${border(theme, "─".repeat(fillWithCopy))}${copyStyled}${border(theme, "─╮")}`,
+			text: `${border(theme, rule(2))}${labelStyled}${border(theme, rule(fillWithCopy))}${copyStyled}${border(theme, rule(2))}`,
 			copy: { row: 0, start: 2 + labelWidth + fillWithCopy, width: copyWidth },
 		};
 	}
 
-	const fill = Math.max(0, inner - labelWidth - 1);
 	return {
-		text: `${border(theme, "╭─")}${labelStyled}${border(theme, `${"─".repeat(fill)}╮`)}`,
+		text: `${border(theme, rule(2))}${labelStyled}${border(theme, rule(width - 2 - labelWidth))}`,
 	};
 }
 
@@ -186,7 +199,7 @@ export function frameUserMessage(
 	});
 
 	const includeMarkers = options.includeMarkers !== false;
-	const bottomRule = border(theme, `╰${"─".repeat(Math.max(0, width - 2))}╯`);
+	const bottomRule = border(theme, rule(width));
 	const topLine = includeMarkers
 		? `${zoned.head}${top.text}${MESSAGE_START}${markedText ? "" : MESSAGE_TEXT}`
 		: `${zoned.head}${top.text}`;

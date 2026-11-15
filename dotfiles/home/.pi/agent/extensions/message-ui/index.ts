@@ -1,16 +1,16 @@
 /**
  * Message UI — framed prompts, compact summaries, and a sticky prompt header.
  *
- * Submitted user messages become a copy-friendly rounded frame:
+ * Submitted user messages become a copy-friendly heavy frame:
  *
- *   ╭─ User ─────────────────────────────╮
+ *   ━━━━━━━━ User ━━━━━━━━━━━━━━━━━ [Copy] ━━
  *
  *     Refactor the auth flow:
  *
  *     1. extract token parsing
  *     2. add tests
  *
- *   ╰────────────────────────────────────╯
+ *   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  *
  * The frame uses the theme's highlighted border color, so it follows the
  * active palette without a filled background. Content rows have no vertical
