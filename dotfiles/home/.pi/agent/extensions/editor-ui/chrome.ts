@@ -1,12 +1,15 @@
 /**
- * Rounded, copy-friendly editor chrome.
+ * Heavy, copy-friendly editor chrome.
  *
  * Top rule:  working spinner/message, timer, repo/branch/session, Copy chip.
  * Bottom:    model/provider, thinking, context bar, cost, cumulative token stats.
  *
- * The body rows are untouched: no side rails, so selecting the draft does not
- * copy frame glyphs. The Copy chip has the same fixed 8-column geometry as the
- * user-message frame's chip.
+ * The body rows are untouched: no side rails and no left padding, so the draft
+ * starts flush left and selecting it does not copy frame glyphs. The Copy chip
+ * has the same fixed 8-column geometry as the user-message frame's chip.
+ *
+ * Both frames share the heavy stroke, so the message and the editor read as
+ * one surface.
  */
 
 import {
@@ -48,6 +51,17 @@ import { setTimerTui, timerLabel } from "./timer.ts";
 interface CopyRange {
 	start: number;
 	width: number;
+}
+
+/** Heavy straight rule: one stroke, no corners, no side rails. */
+const RULE = {
+	horizontal: "━",
+	/** Pi draws its own status rule with the light stroke. */
+	light: "─",
+} as const;
+
+function rule(count: number): string {
+	return RULE.horizontal.repeat(Math.max(0, count));
 }
 
 function paint(theme: ChromeTheme | undefined, color: string, text: string): string {
@@ -143,26 +157,39 @@ export class ChromeEditor extends CustomEditor {
 		const autocomplete = lines.slice(bottomIndex + 1);
 		if (autocomplete.length === 0) return lines;
 
+		// Autocomplete rows are already at the editor's content width. A single
+		// rule separates them from the draft; no side rails, no second box.
 		const theme = this.currentChromeTheme();
-		const borderChar = (text: string) => border(theme, text);
-		const separator = `${borderChar("├")}${borderChar("─".repeat(Math.max(0, width - 2)))}${borderChar("┤")}`;
-		const contentWidth = Math.max(1, width - 4);
-		const framed = autocomplete.map((line) => {
-			const inner = truncateToWidth(
-				sliceByColumn(line, CONFIG.paddingX, contentWidth, true),
-				contentWidth,
-				"",
-			);
-			const padded = inner + " ".repeat(Math.max(0, contentWidth - visibleWidth(inner)));
-			return `${borderChar("│")} ${padded} ${borderChar("│")}`;
+		const separator = border(theme, rule(width));
+		const rows = autocomplete.map((line) => {
+			const text = truncateToWidth(line, width, "");
+			return text + " ".repeat(Math.max(0, width - visibleWidth(text)));
 		});
 
 		return [
 			...lines.slice(0, bottomIndex),
 			separator,
-			...framed,
+			...rows,
 			lines[bottomIndex] ?? this.renderBottomBorder(width, 0),
 		];
+	}
+
+	/**
+	 * Pi's `BranchSummaryStatusIndicator` hardcodes accent/muted instead of
+	 * taking the embedded editor's border color, so "Summarizing branch..." was
+	 * the only working message that did not match the frame. Repaint its
+	 * rendered line in the frame color; other indicator kinds keep their palette.
+	 */
+	override setWorkingStatusIndicator(indicator: any): void {
+		if (indicator?.kind === "branchSummary") {
+			for (const name of ["renderInBorder", "renderSpinnerInBorder"] as const) {
+				const original = indicator[name];
+				if (typeof original !== "function") continue;
+				indicator[name] = (width: number) =>
+					border(this.currentChromeTheme(), stripTerminalSequences(original.call(indicator, width)));
+			}
+		}
+		super.setWorkingStatusIndicator(indicator);
 	}
 
 	dispose(): void {
@@ -317,7 +344,7 @@ export class ChromeEditor extends CustomEditor {
 		let repo = this.repoText(maxRepoWidth, theme);
 		if (repo) repo = ` ${repo}`;
 		let repoWidth = visibleWidth(repo);
-		let copySeparator = repo && copyWidth > 0 ? ` ${border(theme, "──")}` : "";
+		let copySeparator = repo && copyWidth > 0 ? ` ${border(theme, rule(2))}` : "";
 		let copySeparatorWidth = visibleWidth(copySeparator);
 		let baseWidth = width - copyWidth - timerWidth - repoWidth - copySeparatorWidth - 2;
 
@@ -345,14 +372,16 @@ export class ChromeEditor extends CustomEditor {
 
 		const base = super.renderTopBorder(baseWidth, hiddenLineCount);
 		let body = baseWidth > 2 ? sliceByColumn(base, 2, baseWidth - 2, true) : "";
+		// Pi paints the status rule with the light stroke; keep the frame one weight.
+		body = body.replaceAll(RULE.light, RULE.horizontal);
 		// The native working indicator starts with a leading space. With the
 		// timer's trailing space that reads as two columns; keep one separating
 		// column and replace the removed column with a border cell.
 		if (timer && visibleWidth(body) > 0 && stripTerminalSequences(body).startsWith(" ")) {
 			const bodyWidth = visibleWidth(body);
-			body = `${sliceByColumn(body, 1, Math.max(0, bodyWidth - 1), true)}${border(theme, "─")}`;
+			body = `${sliceByColumn(body, 1, Math.max(0, bodyWidth - 1), true)}${border(theme, RULE.horizontal)}`;
 		}
-		const line = `${border(theme, "╭─")}${timer}${body}${repo}${copySeparator}${copy}${border(theme, "─╮")}`;
+		const line = `${border(theme, rule(2))}${timer}${body}${repo}${copySeparator}${copy}${border(theme, rule(2))}`;
 		if (copyWidth > 0) {
 			const start = baseWidth + timerWidth + repoWidth + copySeparatorWidth;
 			this.copyRanges.set(width, { start, width: copyWidth });
@@ -410,16 +439,16 @@ export class ChromeEditor extends CustomEditor {
 		const rightWidth = visibleWidth(right);
 		const leftGap = leftWidth > 0 ? 1 : 0;
 		const rightGap = rightWidth > 0 ? 1 : 0;
-		const suffix = rightWidth > 0 ? " ─╯" : "─╯";
+		const suffix = rightWidth > 0 ? ` ${rule(2)}` : rule(2);
 		const gap = Math.max(
 			0,
 			width - 3 - leftWidth - leftGap - rightWidth - rightGap - visibleWidth(suffix),
 		);
 		const line =
-			border(theme, "╰─ ") +
+			border(theme, `${rule(2)} `) +
 			left +
 			(leftGap ? " " : "") +
-			border(theme, "─".repeat(gap)) +
+			border(theme, rule(gap)) +
 			(rightWidth > 0 ? " " + right : "") +
 			border(theme, suffix);
 		return truncateToWidth(line, width, "");

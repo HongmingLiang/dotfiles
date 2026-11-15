@@ -1,20 +1,20 @@
 /**
- * Editor UI — rounded, copy-friendly borders around the input editor.
+ * Editor UI — heavy, copy-friendly rules around the input editor.
  *
  * It intentionally does not call `ctx.ui.setFooter()`: the native footer is
  * hidden by wrapping `FooterComponent.prototype.render`, so any future custom
  * footer extension still wins normally. The editor's existing top/bottom rules
  * become the information surface:
  *
- *   ╭─ ⠼ Working 00:42 ──────────────── ~/repo - main - session ─ [Copy] ─╮
- *     prompt...
- *   ╰─ deepseek/deepseek-flash - max - ▬▬▬▭▭▭▭▭▭▭ 14% - $2.413 ── ↑... ─╯
+ *   ━━ ⠼ Working 00:42 ━━━━━━━━━━━━ ~/repo - main - session ━ [Copy] ━━
+ *   prompt...
+ *   ━━ deepseek/deepseek-flash - max - ██████──── 14% - $2.413 ━ ↑... ━━
  *
- * The body has no vertical rails, so selecting the draft stays copy-friendly.
+ * The body has no vertical rails and no left padding, so the draft starts
+ * flush left and selecting it stays copy-friendly.
  */
 
 import {
-	copyToClipboard,
 	type ExtensionAPI,
 	type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
@@ -118,26 +118,12 @@ export default function editorChromeExtension(pi: ExtensionAPI): void {
 		state.ctx = undefined;
 	});
 
-	pi.registerCommand("chrome", {
-		description: "Toggle the native footer or copy the editor draft",
-		handler: async (args, ctx) => {
-			const [command, value] = args.trim().split(/\s+/);
-			if (command === "footer" && (value === "on" || value === "off")) {
-				setFooterHidden(state, value === "off");
-				ctx.ui.notify(`Native footer ${value === "off" ? "hidden" : "shown"}`, "info");
-				return;
-			}
-			if (command === "copy") {
-				const text = ctx.ui.getEditorText();
-				if (!text) {
-					ctx.ui.notify("Editor is empty", "info");
-					return;
-				}
-				await copyToClipboard(text);
-				ctx.ui.notify("Copied editor draft", "info");
-				return;
-			}
-			ctx.ui.notify("Usage: /chrome footer on|off, or /chrome copy", "info");
+	pi.registerCommand("footer", {
+		description: "Toggle the native footer",
+		handler: async (_args, ctx) => {
+			const hidden = !state.footerHidden;
+			setFooterHidden(state, hidden);
+			ctx.ui.notify(`Native footer ${hidden ? "hidden" : "shown"}`, "info");
 		},
 	});
 }

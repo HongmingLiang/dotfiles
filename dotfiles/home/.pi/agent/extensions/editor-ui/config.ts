@@ -4,8 +4,11 @@ export const CONFIG = {
 	footerHidden: true,
 	/** Fixed copy-chip width (` [Copy] ` / ` [Done] `). */
 	copyFeedbackMs: 1_400,
-	/** Body padding. Editor owns the cursor/mouse geometry, so this is safe. */
-	paddingX: 2,
+	/**
+	 * Body padding. 0 keeps the draft flush with the frame's left edge.
+	 * Editor owns the cursor/mouse geometry, so this is safe.
+	 */
+	paddingX: 0,
 	/** Context bar cells at normal / compact widths. */
 	barCells: 10,
 	compactBarCells: 6,
