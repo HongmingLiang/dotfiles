@@ -9,10 +9,12 @@
  *
  * The data lives in the session log rather than on the component: Pi stores the
  * send time on the user entry (`entry.timestamp`) and the answering model on
- * the assistant message that followed it. Rebuilt transcripts pass both the
- * entry id and the timestamp into the component; a live `message_start` passes
- * neither, so those fall back to the selected model and the moment the
- * component first rendered.
+ * the assistant message that followed it. Nothing here is persisted or carried
+ * across a rebuild; the label is re-derived from the entries. Rebuilt
+ * transcripts pass the entry id and timestamp into the component; a live
+ * `message_start` passes neither, so `index.ts` binds the component to its entry
+ * by message identity. Until that binding exists the message falls back to the
+ * selected model and the moment the component first rendered.
  */
 
 export interface MessageMetadata {
@@ -52,33 +54,6 @@ export interface MessageMetadataInput {
 	showModel: boolean;
 }
 
-/**
- * Facts that never change for a committed prompt, plus the day the stamp was
- * formatted for (a transcript left open past midnight picks up the date instead
- * of keeping a bare clock time). Whether the model is *shown* is decided per
- * render from the session-wide model set, so it is not cached here.
- */
-interface CachedFacts {
-	day: string;
-	time?: string;
-	model?: string;
-}
-
-const cache = new Map<string, CachedFacts>();
-const CACHE_LIMIT = 512;
-
-function dayKey(now: number): string {
-	const date = new Date(now);
-	return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-}
-
-/** Drop cached lookups after the transcript is rebuilt from other entries. */
-export function resetMessageMetadataCache(): void {
-	cache.clear();
-	modelSet = undefined;
-	modelSetKey = "";
-}
-
 export function modelLabel(provider?: string, id?: string): string | undefined {
 	if (!provider) return id || undefined;
 	if (!id) return provider;
@@ -91,8 +66,9 @@ function messageModel(message: EntryMessage | undefined): string | undefined {
 
 /**
  * The model that answered a prompt: the first assistant message before the next
- * prompt. Prompts without a reply (aborted, or still queued) fall back to the
- * last `model_change` at or before them.
+ * prompt. Prompts without a reply (aborted, still running, or queued) fall back
+ * to the last `model_change` at or before them; the reply that lands later wins
+ * because the whole view is re-derived whenever the log grows.
  */
 function turnModel(entries: readonly MetadataEntry[], userIndex: number): string | undefined {
 	for (let i = userIndex + 1; i < entries.length; i++) {
@@ -129,37 +105,50 @@ function clipModel(model: string): string {
  * Whether the model label appears at all: only once the session stopped being
  * answered by a single model. The selected model counts, so switching models
  * labels the transcript immediately instead of after the next reply.
+ *
+ * Everything is derived from the entries once per log version, so one scan
+ * serves every message in the frame and any appended entry re-derives it. The
+ * only reason this is memoised is render frequency: a frame repaints on every
+ * keystroke and spinner tick, while the log changes only per turn step.
  */
-let modelSetKey = "";
-let modelSet: Set<string> | undefined;
+interface SessionView {
+	key: string;
+	/** What answered each prompt, by user entry id. */
+	turns: Map<string, string>;
+	/** Every model the session ran on, including the selected one. */
+	models: Set<string>;
+}
 
-function sessionModelSet(entries: readonly MetadataEntry[], selectedModel?: string): Set<string> {
-	const last = entries[entries.length - 1];
-	const key = `${entries.length}|${last?.id ?? ""}|${selectedModel ?? ""}`;
-	if (modelSet && modelSetKey === key) return modelSet;
+let view: SessionView | undefined;
 
+function entriesKey(entries: readonly MetadataEntry[], selectedModel?: string): string {
+	const first = entries[0]?.id ?? "";
+	const last = entries[entries.length - 1]?.id ?? "";
+	return `${entries.length}|${first}|${last}|${selectedModel ?? ""}`;
+}
+
+function sessionView(entries: readonly MetadataEntry[], selectedModel?: string): SessionView {
+	const key = entriesKey(entries, selectedModel);
+	if (view && view.key === key) return view;
+
+	const turns = new Map<string, string>();
 	const models = new Set<string>();
 	for (let i = 0; i < entries.length; i++) {
 		const entry = entries[i];
 		if (entry?.type !== "message" || entry.message?.role !== "user") continue;
 		const model = turnModel(entries, i);
+		if (entry.id) turns.set(entry.id, model);
 		if (model) models.add(model);
 	}
 	if (selectedModel) models.add(selectedModel);
 
-	modelSet = models;
-	modelSetKey = key;
-	return models;
+	view = { key, turns, models };
+	return view;
 }
 
-function labelModel(
-	entries: readonly MetadataEntry[],
-	model: string | undefined,
-	selectedModel?: string,
-): string | undefined {
-	if (!model) return undefined;
-	if (sessionModelSet(entries, selectedModel).size <= 1) return undefined;
-	return clipModel(model);
+/** Drop the derived view after the transcript is rebuilt from other entries. */
+export function resetMessageMetadataCache(): void {
+	view = undefined;
 }
 
 function pad(value: number): string {
@@ -192,36 +181,18 @@ export function formatSendTime(value: string | number | undefined, now = Date.no
 
 export function messageMetadata(input: MessageMetadataInput): MessageMetadata {
 	const now = Date.now();
-	const day = dayKey(now);
 	const id = input.messageId;
-
-	if (!id) {
-		// The live prompt has no committed entry: its model is the selected one,
-		// and it joins the session's model set as soon as it is on screen.
-		const meta: MessageMetadata = {};
-		if (input.showTime) meta.time = formatSendTime(input.sentAt, now);
-		if (input.showModel) meta.model = labelModel(input.entries, input.currentModel, input.currentModel);
-		return meta;
-	}
-
-	let facts = cache.get(id);
-	if (!facts || facts.day !== day) {
-		facts = { day };
-		if (input.showTime) facts.time = formatSendTime(input.timestamp ?? input.sentAt, now);
-		if (input.showModel) {
-			const index = input.entries.findIndex((entry) => entry.id === id);
-			facts.model = index >= 0 ? turnModel(input.entries, index) : undefined;
-		}
-		// A render that happens before the session is readable must not pin an
-		// empty result into the cache.
-		if (input.entries.length > 0) {
-			if (cache.size >= CACHE_LIMIT) cache.clear();
-			cache.set(id, facts);
-		}
-	}
-
 	const meta: MessageMetadata = {};
-	if (input.showTime) meta.time = facts.time;
-	if (input.showModel) meta.model = labelModel(input.entries, facts.model, input.currentModel);
+
+	if (input.showTime) {
+		meta.time = formatSendTime(id ? input.timestamp ?? input.sentAt : input.sentAt, now);
+	}
+	if (!input.showModel) return meta;
+
+	const session = sessionView(input.entries, input.currentModel);
+	// A prompt that is still being sent has no entry yet: it is answered by the
+	// selected model, and it joins the model set with it.
+	const model = id ? session.turns.get(id) : input.currentModel;
+	if (model && session.models.size > 1) meta.model = clipModel(model);
 	return meta;
 }

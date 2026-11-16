@@ -65,6 +65,7 @@ const WIDGET_KEY = "message-ui";
 const LEGACY_WIDGET_KEYS = ["user-message-ui", "user-message-frame"];
 const COPY_FEEDBACK_MS = 1_400;
 const COPY_MOUSE_VERSION = 2;
+const PENDING_USER_LIMIT = 32;
 
 interface MessageUiConfig {
 	frame: FrameConfig;
@@ -137,6 +138,14 @@ interface State {
 	generation: number;
 }
 
+/**
+ * Prompts sent by this process, in the order Pi emitted them. `message_start`
+ * fires before Pi builds the component (and the component only receives the
+ * text), so this queue is the only link between a live prompt and the session
+ * entry that records the model that answered it.
+ */
+const pendingUserMessages: any[] = [];
+
 function getState(): State {
 	const global = globalThis as unknown as Record<symbol, State | undefined>;
 	const existing = global[STATE_KEY];
@@ -168,6 +177,57 @@ function sessionEntries(state: State): readonly any[] {
 		// The session may be shutting down mid-render.
 	}
 	return [];
+}
+
+function messageText(message: any): string {
+	const content = message?.content;
+	if (typeof content === "string") return content;
+	if (!Array.isArray(content)) return "";
+	let text = "";
+	for (const block of content) {
+		if (block?.type === "text" && typeof block.text === "string") text += block.text;
+	}
+	return text;
+}
+
+/** A skill prompt renders the skill block separately; its user text is a suffix. */
+function samePrompt(componentText: string, entryText: string): boolean {
+	if (!componentText || !entryText) return false;
+	return componentText === entryText || entryText.endsWith(componentText);
+}
+
+function clearPendingUserMessages(): void {
+	pendingUserMessages.length = 0;
+}
+
+/**
+ * Bind a live prompt to the session entry that owns it, so the label keeps the
+ * model that answered instead of following every later model switch. Rebuilt
+ * transcripts already carry the entry id, so this only runs for new prompts.
+ */
+function liveEntryMetadata(component: any, state: State): { id?: string; timestamp?: string } {
+	const bound = component.__userMessageUiEntryId;
+	if (typeof bound === "string") {
+		return { id: bound, timestamp: component.__userMessageUiEntryTimestamp };
+	}
+
+	const entries = sessionEntries(state);
+	const text = typeof component.text === "string" ? component.text : "";
+	while (pendingUserMessages.length > 0) {
+		const pending = pendingUserMessages[0];
+		const index = entries.findIndex(
+			(entry: any) => entry?.type === "message" && entry.message === pending,
+		);
+		// The entry is appended on `message_end`; retry on the next render.
+		if (index < 0) return {};
+		pendingUserMessages.shift();
+		if (!samePrompt(text, messageText(pending))) continue;
+		const entry = entries[index];
+		component.__userMessageUiEntryId = entry.id;
+		component.__userMessageUiEntryTimestamp = typeof entry.timestamp === "string" ? entry.timestamp : undefined;
+		return { id: entry.id, timestamp: component.__userMessageUiEntryTimestamp };
+	}
+	return {};
 }
 
 function framePatches(prototype: any): FramePatch[] {
@@ -247,11 +307,13 @@ function installFramePatch(state: State): void {
 		try {
 			const copiedAt = Number(this.__userMessageUiCopiedAt ?? 0);
 			const copyDone = copiedAt > 0 && Date.now() - copiedAt < COPY_FEEDBACK_MS;
-			// Rebuilt messages carry their entry timestamp; the live one does not.
+			// Rebuilt messages carry their entry id and timestamp; a live prompt is
+			// bound to its entry as soon as Pi has appended it.
 			if (!this.__userMessageUiSentAt) this.__userMessageUiSentAt = Date.now();
+			const live = typeof this.messageId === "string" ? undefined : liveEntryMetadata(this, state);
 			const meta = messageMetadata({
-				messageId: typeof this.messageId === "string" ? this.messageId : undefined,
-				timestamp: typeof this.timestamp === "string" ? this.timestamp : undefined,
+				messageId: typeof this.messageId === "string" ? this.messageId : live?.id,
+				timestamp: typeof this.timestamp === "string" ? this.timestamp : live?.timestamp,
 				sentAt: this.__userMessageUiSentAt as number,
 				entries: sessionEntries(state),
 				currentModel: modelLabel(state.ctx?.model?.provider, state.ctx?.model?.id),
@@ -535,7 +597,16 @@ export default function messageUiExtension(pi: ExtensionAPI): void {
 		state.theme = ctx.ui.theme as FrameTheme;
 		state.ctx = ctx;
 		resetMessageMetadataCache();
+		clearPendingUserMessages();
 		installTui(ctx, state);
+	});
+
+	// Capture each prompt as it starts so the frame can find the entry that
+	// records which model answered it, even after a later model switch.
+	pi.on("message_start", async (event) => {
+		if (event.message?.role !== "user") return;
+		pendingUserMessages.push(event.message);
+		if (pendingUserMessages.length > PENDING_USER_LIMIT) pendingUserMessages.shift();
 	});
 
 	// Theme changes do not have their own extension event; the next turn is a
@@ -551,6 +622,7 @@ export default function messageUiExtension(pi: ExtensionAPI): void {
 		state.theme = ctx.ui.theme as FrameTheme;
 		state.ctx = ctx;
 		resetMessageMetadataCache();
+		clearPendingUserMessages();
 		installTui(ctx, state);
 	});
 
@@ -558,6 +630,7 @@ export default function messageUiExtension(pi: ExtensionAPI): void {
 		state.theme = ctx.ui.theme as FrameTheme;
 		state.ctx = ctx;
 		resetMessageMetadataCache();
+		clearPendingUserMessages();
 		installTui(ctx, state);
 	});
 
