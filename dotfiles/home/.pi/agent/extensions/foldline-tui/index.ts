@@ -61,6 +61,7 @@ import {
 	toggleGroup,
 } from "./tool-groups.ts";
 import {
+	bashTimeoutText,
 	displayToolName,
 	formatGroupLine,
 	formatThoughtRow,
@@ -321,8 +322,11 @@ function renderGrouped(tool: ToolExecutionLike, width: number, patch: FoldlineTu
 
 		if (contentLines.length > 0) {
 			const status = getStatus(tool, patch);
-			// The row above carries args and timing; the border carries the name.
-			const boxLabel = ` ${theme.fg("toolTitle", displayToolName(tool.toolName))} `;
+			// The row above carries args and timing; the border carries the name
+			// and, for Bash, the timeout that would be clipped from a long command.
+			const timeout = tool.toolName === "bash" ? bashTimeoutText(tool.args) : "";
+			const boxTitle = `${theme.fg("toolTitle", displayToolName(tool.toolName))}${timeout ? ` ${theme.fg("muted", timeout)}` : ""}`;
+			const boxLabel = ` ${boxTitle} `;
 			const framed = frameToolLines(contentLines, boxWidth, borderColorFor(status), patch.theme, boxLabel);
 			const framedTop = lines.length;
 			for (const line of framed) lines.push(`${groupGutter(theme)} ${line}`);

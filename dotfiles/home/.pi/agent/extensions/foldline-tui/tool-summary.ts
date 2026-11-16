@@ -38,6 +38,7 @@ export interface ToolLike {
 	toolName?: string;
 	args?: unknown;
 	result?: ToolResultLike;
+	expanded?: boolean;
 }
 
 export interface GroupSummary {
@@ -274,6 +275,14 @@ function shortenCd(line: string): string {
 	return `cd ${short}${match[4]}${line.slice(match[0].length)}`;
 }
 
+/** Pi shows a Bash timeout after the command; keep that suffix in custom rows. */
+export function bashTimeoutText(args: unknown): string {
+	const timeout = (args as { timeout?: unknown } | undefined)?.timeout;
+	return typeof timeout === "number" && Number.isFinite(timeout) && timeout > 0
+		? `(timeout ${timeout}s)`
+		: "";
+}
+
 function argParts(toolName: string | undefined, args: unknown): { text: string; suffix: string } {
 	if (!args || typeof args !== "object") return { text: "", suffix: "" };
 	const record = args as Record<string, unknown>;
@@ -373,7 +382,7 @@ function layoutRow(width: number, fixed: number, tailCells: number): RowLayout {
 }
 
 /**
- * ` ✓ Bash cd ~/p && pnpm test  12 lines · 1.2s`
+ * ` ✓ Bash cd ~/p && pnpm test (timeout 30s)  12 lines · 1.2s`
  *
  * The metrics give way before the command does: below a readable argument
  * budget the row keeps the command and drops the tail.
@@ -396,6 +405,9 @@ export function formatToolRow(
 	const nameText = theme.fg("toolTitle", name);
 
 	const note = status === "running" ? "" : summarizeResult(rawName, tool.result, tool.args);
+	// When the box is open its title carries the timeout, so the row does not
+	// repeat it.
+	const timeout = rawName === "bash" && tool.expanded !== true ? bashTimeoutText(tool.args) : "";
 	const duration = status === "running" ? "" : formatDuration(tool.result?.durationMs);
 	const tailPlain = [note, duration].filter(Boolean).join(" · ");
 	const tail = tailPlain ? `  ${theme.fg("muted", tailPlain)}` : "";
@@ -411,7 +423,10 @@ export function formatToolRow(
 	if (overflow) {
 		if (visibleWidth(argText) > layout.args) argText = argText.slice(0, -overflow.length);
 	}
-	const shown = clipPlain(argText, layout.args);
+	// Reserve room for the timeout suffix before clipping a long command, so it
+	// never disappears just because the command consumed the argument budget.
+	const timeoutCells = timeout ? 1 + visibleWidth(timeout) : 0;
+	const shown = clipPlain(argText, Math.max(0, layout.args - timeoutCells));
 	let colored: string;
 	if (status !== "error" && rawName === "bash" && shown) {
 		try {
@@ -423,9 +438,10 @@ export function formatToolRow(
 		colored = shown ? theme.fg("toolOutput", shown) : "";
 	}
 
-	const args = ` ${colored}`;
-	const pad =
-		layout.padTo > 0 ? " ".repeat(Math.max(0, layout.padTo - visibleWidth(colored))) : "";
+	const suffix = timeout ? ` ${theme.fg("muted", timeout)}` : "";
+	const args = ` ${colored}${suffix}`;
+	const argCells = visibleWidth(colored) + visibleWidth(suffix);
+	const pad = layout.padTo > 0 ? " ".repeat(Math.max(0, layout.padTo - argCells)) : "";
 	return clipPlain(`${ROW_LEAD}${glyph} ${nameText}${args}${pad}${layout.tail ? tail : ""}`, width);
 }
 

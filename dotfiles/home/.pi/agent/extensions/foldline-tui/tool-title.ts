@@ -9,6 +9,7 @@
 import { homedir } from "node:os";
 import { stripVTControlCharacters } from "node:util";
 import {
+	bashTimeoutText,
 	displayToolName,
 	formatDuration,
 	summarizeArgs,
@@ -34,6 +35,7 @@ function shortenHome(path: string): string {
 export function standaloneLabel(tool: TitledTool, status: ToolStatus, theme: ColorTheme): string {
 	const name = tool.toolName;
 	if (!name) return "";
+	const timeout = name === "bash" ? bashTimeoutText(tool.args) : "";
 	const args = shortenHome(summarizeArgs(name, tool.args, tool.result));
 	// The edit diff already carries its own `+A -B` summary; do not repeat it
 	// in the border. Other tools keep their result note.
@@ -43,6 +45,7 @@ export function standaloneLabel(tool: TitledTool, status: ToolStatus, theme: Col
 	const duration = status === "running" ? "" : formatDuration(tool.result?.durationMs);
 	const tailPlain = [note, duration].filter(Boolean).join(" · ");
 	const parts = [theme.fg("toolTitle", displayToolName(name))];
+	if (timeout) parts.push(theme.fg("muted", timeout));
 	if (args) parts.push(theme.fg("toolOutput", args));
 	const tail = tailPlain ? `  ${theme.fg("muted", tailPlain)}` : "";
 	return ` ${parts.join(" ")}${tail} `;
@@ -56,6 +59,10 @@ export function standaloneLabel(tool: TitledTool, status: ToolStatus, theme: Col
 export function stripInnerTitle(tool: TitledTool, lines: string[]): { lines: string[]; dropped: number } {
 	const name = tool.toolName;
 	if (!name) return { lines, dropped: 0 };
+	// The border title now carries the Bash timeout; do not repeat it on the
+	// native call line inside the box.
+	const timeout = name === "bash" ? bashTimeoutText(tool.args) : "";
+	if (timeout) lines = lines.map((line) => line.replace(` ${timeout}`, ""));
 	// A background-filled padding row is still blank for this scan: only the
 	// tool's own title text matters, not the box styling above it.
 	const blank = (line: string) => stripVTControlCharacters(line).trim() === "";
