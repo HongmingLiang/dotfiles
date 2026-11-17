@@ -59,3 +59,12 @@ window_title = "{hostname}: {workspace} · {terminal_title}"
 [ui.sound]
 enabled = true
 
+[experimental]
+# Read prefix-mode keys as ASCII even while a Chinese IME is active.
+switch_ascii_input_source_in_prefix = true
+# Keep the IME candidate window anchored in agent TUIs that paint their own cursor.
+reveal_hidden_cursor_for_cjk_ime = true
+# Only agent panes get that anchor, so nvim/vim keep their own cursor handling.
+cjk_ime_agents = ["pi", "claude", "codex"]
+# Shape of that anchor cursor: a thin vertical line, not a block.
+cjk_ime_cursor_shape = "steady_bar"
