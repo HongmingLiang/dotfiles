@@ -5,6 +5,7 @@ theme = Catppuccin Mocha
 font-family = JetBrainsMono Nerd Font Mono
 font-size = 14
 font-style = "Regular"
+font-thicken = true
 
 scrollback-limit = 10000
 background-opacity = 0.95
