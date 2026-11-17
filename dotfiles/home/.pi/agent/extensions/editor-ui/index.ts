@@ -68,6 +68,10 @@ export default function editorChromeExtension(pi: ExtensionAPI): void {
 		installEditor(ctx, state);
 	});
 
+	// Runs and compactions get their precise boundaries from these events. Every
+	// other busy operation (branch summaries, retries, compactions that fail
+	// before session_before_compact) is timed from the editor's working
+	// indicator; see syncWorkingIndicator() in timer.ts.
 	pi.on("before_agent_start", async (_event, ctx) => {
 		if (ctx.mode === "tui") beginTiming(state.timer, "run");
 	});
@@ -78,7 +82,8 @@ export default function editorChromeExtension(pi: ExtensionAPI): void {
 	});
 
 	// Compaction outside a run gets its own clock; compaction inside a run
-	// keeps the run clock going.
+	// keeps the run clock going. The working indicator usually starts this
+	// clock already, so only start one when nothing else is being timed.
 	pi.on("session_before_compact", async (_event, ctx) => {
 		if (ctx.mode === "tui" && state.timer.phase === "idle") {
 			beginTiming(state.timer, "compaction");

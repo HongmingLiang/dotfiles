@@ -19,12 +19,23 @@ export interface ChromeTheme {
 	getThinkingBorderColor?(level: string): (text: string) => string;
 }
 
+/** Every phase except `idle` owns a running clock. */
+export type TimerPhase = "idle" | "run" | "compaction" | "branchSummary" | "working";
+
+export type ActiveTimerPhase = Exclude<TimerPhase, "idle">;
+
 export interface TimerState {
 	tui?: TUI;
 	startedAt?: number;
 	elapsedSeconds?: number;
-	phase: "idle" | "run" | "compaction";
+	phase: TimerPhase;
 	interval?: ReturnType<typeof setInterval>;
+	/**
+	 * Bumped whenever a clock starts or stops. `showStatusIndicator()` clears the
+	 * working indicator and sets its replacement in the same tick, so a deferred
+	 * freeze has to know whether something took over meanwhile.
+	 */
+	indicatorToken?: number;
 }
 
 export interface AppState {

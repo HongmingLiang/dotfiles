@@ -43,10 +43,11 @@ import {
 } from "./format.ts";
 import {
 	currentTheme,
+	type ActiveTimerPhase,
 	type AppState,
 	type ChromeTheme,
 } from "./state.ts";
-import { setTimerTui, timerLabel } from "./timer.ts";
+import { setTimerTui, syncWorkingIndicator, timerLabel } from "./timer.ts";
 
 interface CopyRange {
 	start: number;
@@ -63,6 +64,19 @@ const RULE = {
 function rule(count: number): string {
 	return RULE.horizontal.repeat(Math.max(0, count));
 }
+
+/**
+ * Pi renders a working indicator for every long-running operation; map each
+ * kind onto a clock phase so the timer covers all of them.
+ */
+const INDICATOR_PHASES: Record<string, ActiveTimerPhase> = {
+	working: "working",
+	// A retry does not change what is being retried, so it keeps the underlying
+	// clock (run, compaction, or branch summary) going.
+	retry: "working",
+	compaction: "compaction",
+	branchSummary: "branchSummary",
+};
 
 function paint(theme: ChromeTheme | undefined, color: string, text: string): string {
 	if (!theme) return text;
@@ -189,6 +203,13 @@ export class ChromeEditor extends CustomEditor {
 					border(this.currentChromeTheme(), stripTerminalSequences(original.call(indicator, width)));
 			}
 		}
+
+		// The timer follows the indicator rather than individual agent events: it
+		// is set and cleared for every busy kind, including branch summaries (which
+		// have no compact-style start/failure event).
+		const phase = indicator ? (INDICATOR_PHASES[indicator.kind as string] ?? "working") : undefined;
+		syncWorkingIndicator(this.appState.timer, phase);
+
 		super.setWorkingStatusIndicator(indicator);
 	}
 
