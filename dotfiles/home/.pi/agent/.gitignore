@@ -10,3 +10,6 @@
 !themes/**
 !prompts/
 !prompts/**
+
+# herdr-managed pi integration (reinstalled by `herdr integration install pi`)
+extensions/herdr-agent-state.ts

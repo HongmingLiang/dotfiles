@@ -1,0 +1,48 @@
+onboarding = false
+
+[keys]
+# Ghostty sends cmd+b as ESC b (= alt+b), so Cmd+B works as the prefix.
+prefix = "alt+b"
+
+# tmux parity: prefix s = jump list, prefix g = lazygit, prefix , = settings.
+goto = "prefix+s"
+settings = "prefix+comma"
+# tmux-style detach, keeping herdr's default prefix+q as well.
+detach = ["prefix+d", "prefix+q"]
+
+split_vertical = "prefix+backslash"
+split_horizontal = "prefix+minus"
+
+# Cycle through the agents shown in the agent panel (across workspaces).
+# Plain letters only: after the prefix, Cmd chords are grabbed by Ghostty
+# and Alt/Option arrives as ESC, which prefix mode reads as "cancel".
+next_agent = "prefix+a"
+previous_agent = "prefix+shift+a"
+
+# tmux parity: popup lazygit in the focused pane's directory.
+[[keys.command]]
+key = "prefix+g"
+type = "popup"
+command = "lazygit"
+description = "lazygit popup"
+width = "95%"
+height = "95%"
+
+[ui.toast]
+delivery = "terminal"
+
+[theme]
+name = "catppuccin"
+auto_switch = false
+
+[ui]
+status_indicators = "dots"
+# Borders on, sharing one divider line between panes (shortest gap with borders).
+pane_gaps = false
+pane_borders = "auto"
+# New tabs and workspaces get generated names instead of a name prompt.
+prompt_new_tab_name = false
+prompt_new_workspace_name = false
+
+[ui.sound]
+enabled = true
