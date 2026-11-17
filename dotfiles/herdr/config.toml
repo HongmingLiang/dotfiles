@@ -36,13 +36,26 @@ name = "catppuccin"
 auto_switch = false
 
 [ui]
-status_indicators = "dots"
+status_indicators = "symbols"
 # Borders on, sharing one divider line between panes (shortest gap with borders).
 pane_gaps = false
 pane_borders = "auto"
 # New tabs and workspaces get generated names instead of a name prompt.
 prompt_new_tab_name = false
 prompt_new_workspace_name = false
+show_agent_labels_on_pane_borders = true
+# Separators live inside text entries so the trailing text entry can add a blank cell.
+tab_bar_right = [
+  { type = "zoom" },
+  { type = "hostname" },
+  { type = "text", text = " │ " },
+  { type = "datetime", format = "%H:%M" },
+  { type = "text", text = "  " },
+]
+tab_bar_right_separator = ""
+# Outer terminal title, read by Ghostty's tab bar.
+window_title = "{hostname}: {workspace} · {terminal_title}"
 
 [ui.sound]
 enabled = true
+
