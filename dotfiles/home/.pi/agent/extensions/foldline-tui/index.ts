@@ -665,6 +665,7 @@ const ASSISTANT_MOUSE = Symbol.for("pi.toolbox.assistant-mouse");
 const ASSISTANT_DECORATED = Symbol.for("pi.toolbox.assistant-decorated");
 const ASSISTANT_UPDATE = Symbol.for("pi.toolbox.assistant-update");
 const ASSISTANT_HIDE = Symbol.for("pi.toolbox.assistant-hide-thinking");
+const ASSISTANT_PREPARED = Symbol.for("pi.toolbox.assistant-prepared");
 const WRAPPER_DISPOSED = Symbol.for("pi.toolbox.wrapper-disposed");
 
 type AssistantKind = "render" | "handleMouse" | "updateContent" | "setHideThinkingBlock";
@@ -698,6 +699,9 @@ function installAssistantPatch(patch: FoldlineTuiPatch): void {
 			this.hiddenThinkingLabel = "";
 			try {
 				originalUpdate.call(this, message, isStreaming);
+				// The native children now omit thinking. Components created before
+				// this wrapper was installed still need one rebuild on first render.
+				this[ASSISTANT_PREPARED] = true;
 			} finally {
 				this.hideThinkingBlock = hide;
 				this.hiddenThinkingLabel = label;
@@ -739,6 +743,18 @@ function installAssistantPatch(patch: FoldlineTuiPatch): void {
 		const originalRender = currentRender;
 		const wrapped = function (this: any, width: number): string[] {
 			if (assistantDisposed) return originalRender.call(this, width);
+			// A message component can exist before this module is loaded (startup
+			// ordering or a reload). Its native children still contain the hidden
+			// `Thinking...` label, while our rows are added below; rebuild once so
+			// the old label cannot show as a second, non-clickable thinking block.
+			if (!this[ASSISTANT_PREPARED] && this.lastMessage) {
+				try {
+					this.updateContent(this.lastMessage, this.isStreaming);
+					this[ASSISTANT_PREPARED] = true;
+				} catch {
+					// A failed rebuild must not prevent the transcript from drawing.
+				}
+			}
 			const lines = originalRender.call(this, width);
 			// Re-wrapped after another extension's renderer: our rows are already
 			// in these lines, and a second pass would draw them twice.
