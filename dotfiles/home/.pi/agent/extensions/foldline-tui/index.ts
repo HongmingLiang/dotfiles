@@ -667,6 +667,11 @@ const ASSISTANT_UPDATE = Symbol.for("pi.toolbox.assistant-update");
 const ASSISTANT_HIDE = Symbol.for("pi.toolbox.assistant-hide-thinking");
 const ASSISTANT_PREPARED = Symbol.for("pi.toolbox.assistant-prepared");
 const WRAPPER_DISPOSED = Symbol.for("pi.toolbox.wrapper-disposed");
+// Other render wrappers may clone our output array (turn-summary does when it
+// appends its footer). The array identity guard then fails; this zero-width SGR
+// pair survives the clone so a second foldline wrapper can see the rows are
+// already decorated.
+const ASSISTANT_MARKER = "\x1b[8m\x1b[28m";
 
 type AssistantKind = "render" | "handleMouse" | "updateContent" | "setHideThinkingBlock";
 
@@ -757,14 +762,23 @@ function installAssistantPatch(patch: FoldlineTuiPatch): void {
 			}
 			const lines = originalRender.call(this, width);
 			// Re-wrapped after another extension's renderer: our rows are already
-			// in these lines, and a second pass would draw them twice.
+			// in these lines, and a second pass would draw them twice. The marker
+			// also catches a wrapper that cloned the array (for example when
+			// turn-summary inserts its footer).
 			if (this[ASSISTANT_DECORATED] === lines) return lines;
+			if (lines.some((line: string) => line.includes(ASSISTANT_MARKER))) {
+				// Another wrapper cloned the decorated rows (possibly adding a
+				// footer); keep its final line for blank-line bookkeeping.
+				noteRenderedLines(lines);
+				return lines;
+			}
 			let out: string[];
 			try {
 				out = decorateAssistant(this, lines, width, patch);
 			} catch {
 				out = lines;
 			}
+			if (out.length > 0) out = [`${ASSISTANT_MARKER}${out[0]}`, ...out.slice(1)];
 			this[ASSISTANT_DECORATED] = out;
 			noteRenderedLines(out);
 			return out;
