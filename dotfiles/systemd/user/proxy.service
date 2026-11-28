@@ -1,12 +1,12 @@
 [Unit]
-Description=Clash User Service
+Description=Proxy User Service
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 
-ExecStart=%h/.local/bin/clash -f "%h/.config/clash/config.yaml"
+ExecStart=%h/.local/bin/mihomo -f "%h/.config/clash/config.yaml"
 
 Restart=on-failure
 RestartSec=30s
