@@ -65,14 +65,14 @@ EOF
     fi
   }
 
-  # hpreset [name] [dir]: editor / agent / cli workspace for a project.
+  # hload [name] [dir]: editor / agent / cli workspace for a project.
   # Reuses a workspace with the same label instead of creating a duplicate,
   # and attaches to herdr when called from a plain (detached) terminal.
   hload() {
     case "$1" in
       -h|--help)
         cat << 'EOF'
-usage: hpreset [name] [dir]
+usage: hload [name] [dir]
 
   Create (or focus) a herdr workspace with three tabs:
     $EDITOR  the editor running in dir, named after the editor binary
@@ -87,7 +87,7 @@ EOF
         ;;
     esac
 
-    command -v jq &> /dev/null || { echo "hpreset: jq is required" >&2; return 1; }
+    command -v jq &> /dev/null || { echo "hload: jq is required" >&2; return 1; }
 
     local dir="${2:-$PWD}"
     local name="${1:-$(basename "$dir")}"

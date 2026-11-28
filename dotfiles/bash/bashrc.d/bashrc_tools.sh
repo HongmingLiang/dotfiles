@@ -102,9 +102,9 @@ fi
 # dust: better `du`
 if command -v dust > /dev/null 2>&1; then
   for i in {1..5}; do
-    alias "du$i"="dust -d $i -p"
+    alias "du$i"="dust -d $i --reverse"
   done
-  alias du="dust -p"
+  alias du="dust --reverse"
 else
   for i in {1..5}; do
     alias "du$i"="du -hd $i"
